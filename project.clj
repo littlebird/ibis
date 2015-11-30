@@ -1,4 +1,4 @@
-(defproject aviary/ibis "0.0.7"
+(defproject aviary/ibis "0.0.8"
   :description "Distribute jobs among any number of peers using Kafka"
   :url "http://github.com/littlebird/ibis"
   :license {:name "Eclipse Public License"
