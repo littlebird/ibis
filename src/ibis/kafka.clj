@@ -3,7 +3,7 @@
    [clojure.core.async :as >]
    [clj-kafka.core :as kafka]
    [clj-kafka.zk :as zookeeper]
-   [clj-kafka.producer :as producer]
+   [clj-kafka.new.producer :as producer]
    [clj-kafka.consumer.zk :as consumer]
    [clj-kafka.admin :as admin]
    [ibis.transit :as transit]))
@@ -12,10 +12,10 @@
   [zookeeper-host kafka-port opts]
   (producer/producer
    (merge
-    {"metadata.broker.list" (str zookeeper-host \: kafka-port)
-     "serializer.class" "kafka.serializer.DefaultEncoder"
-     "partitioner.class" "kafka.producer.DefaultPartitioner"}
-    opts)))
+    {"bootstrap.servers" (str zookeeper-host \: kafka-port)}
+    opts)
+   (producer/byte-array-serializer)
+   (producer/byte-array-serializer)))
 
 (defn make-consumer
   [zookeeper-host zookeeper-port group opts]
@@ -34,8 +34,8 @@
   (fn ibis-transmit
     [message]
     (let [baos (transit/kafka-serialize message encoders)
-          encoded (producer/message topic baos)]
-      (producer/send-message producer encoded))))
+          encoded (producer/record topic baos)]
+      (producer/send producer encoded))))
 
 (defn make-receive
   [consumer topic decoders]
