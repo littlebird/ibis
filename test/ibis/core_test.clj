@@ -20,7 +20,7 @@
    :d [:e]
    :e [:out]})
 
-(deftest ibis-test
+(deftest ibis-one-journey
   (testing "Ibis full circle"
     (let [ibis (ibis/start {:stages stages})]
       (flock/launch! ibis)
@@ -33,4 +33,29 @@
         (let [results (journey/pull! ibis journey conj [])]
           (println results)
           (is (= (count results) 75))))
+      (ibis/stop ibis))))
+
+(deftest ibis-multiple-journeys
+  (testing "Ibis full circle"
+    (let [ibis (ibis/start {:stages stages})]
+      (flock/launch! ibis)
+      (flock/launch! ibis)
+      (flock/launch! ibis)
+      (let [journey-a (journey/submit! ibis course)]
+        (doseq [x (range 5)]
+          (journey/push! ibis journey-a {:x x}))
+        (let [journey-b (journey/submit! ibis course)]
+          (doseq [x (range 5 15)]
+            (journey/push! ibis journey-a {:x x})
+            (journey/push! ibis journey-b {:x x}))
+          (journey/finish! ibis journey-a)
+          (doseq [x (range 15 20)]
+            (journey/push! ibis journey-b {:x x}))
+          (let [results-a (journey/pull! ibis journey-a conj [])]
+            (println results-a)
+            (is (= (count results-a) 75)))
+          (journey/finish! ibis journey-b)
+          (let [results-b (journey/pull! ibis journey-b conj [])]
+            (println results-b)
+            (is (= (count results-b) 75)))))
       (ibis/stop ibis))))

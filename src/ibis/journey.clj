@@ -51,8 +51,13 @@
    {:keys [id] :as journey}
    paths segments landed
    {:keys [segment-id] :as segment}]
+  (println
+   "LANDED" id
+   "segment" segment-id
+   "- paths:segments:landed"
+   (str (count paths) ":" (count (get segments segment-id)) ":" (count landed)))
   (if (= (count paths) (count (get segments segment-id)))
-    (do 
+    (do
       (zoo/delete zookeeper ["ibis" "journeys" id "segments" segment-id])
       (let [children (zoo/count-children zookeeper ["ibis" "journeys" id "segments"])]
         (and
