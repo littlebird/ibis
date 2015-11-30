@@ -81,7 +81,8 @@
             landed (if (= :land (:message segment)) (conj landed segment) landed)]
         (if (all-landed? ibis journey paths segments landed segment)
           (let [landed-id (:segment-id (first landed))
-                output-segments (map :message (apply concat (vals (dissoc segments landed-id))))]
+                output-segments (mapv :message (apply concat (vals (dissoc segments landed-id))))
+                results (reduce reducer initial output-segments)]
             (clean-up! ibis journey)
-            (reduce reducer initial output-segments))
+            results)
           (recur (receive) segments landed))))))
