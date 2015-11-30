@@ -9,6 +9,16 @@
    :message (.getMessage exception)
    :backtrace (map str (.getStackTrace exception))})
 
+(defn passage
+  [transmit journey stage continuations result traveled segment-id]
+  (doseq [continuation continuations]
+    (transmit
+     {:journey journey
+      :stage continuation
+      :message result
+      :traveled (conj traveled stage)
+      :segment-id segment-id})))
+
 (defn launch!
   [{:keys [transmit receive stages store update producer encoders]}]
   (let [flock-id (java.util.UUID/randomUUID)]
@@ -38,29 +48,21 @@
                     (update
                      :stage {:stage-id stage-id}
                      {:completed (time/now)})
-                    (doseq [continuation continuations]
-                      (transmit
-                       {:journey journey
-                        :stage continuation
-                        :message result
-                        :traveled (conj traveled stage)
-                        :segment-id segment-id})))
+                    (passage
+                     transmit journey stage continuations
+                     result traveled segment-id))
                   (catch Exception e
                     (let [exception (serialize-exception e)]
                       (println "Exception in stage" stage stage-id)
-                      (clojure.pprint/pprint exception)
+                      (println (clojure.pprint/pprint exception))
                       (update
                        :stage {:stage-id stage-id}
                        {:failed (time/now) :exception exception})
-                      (doseq [continuation continuations]
-                        (transmit
-                         {:journey journey
-                          :stage continuation
-                          :message {}
-                          :traveled (conj traveled stage)
-                          :segment-id segment-id}))))))))
+                      (passage
+                       transmit journey stage continuations
+                       result traveled segment-id)))))))
           (catch Exception e
             (let [exception (serialize-exception e)]
               (println "Exception during journey" (:id journey))
-              (clojure.pprint/pprint exception))))
+              (println (clojure.pprint/pprint exception)))))
         (recur (receive))))))
