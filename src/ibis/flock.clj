@@ -14,37 +14,53 @@
   (let [flock-id (java.util.UUID/randomUUID)]
     (future
       (loop [{:keys [journey stage message traveled segment-id] :as segment} (receive)]
-        (if (= stage :out)
-          (let [output (kafka/make-transmit producer (:topic journey) encoders)]
-            (output
-             {:journey journey
-              :stage :out
-              :message message
-              :traveled (conj traveled stage)
-              :segment-id segment-id}))
-          (let [work (get stages stage)
-                stage-id (java.util.UUID/randomUUID)]
-            (store
-             :stage
-             {:journey-id (:id journey)
-              :stage stage
-              :stage-id stage-id
-              :started (time/now)})
-            (try
-              (let [result (if (= message :land) :land (work message))
+        (try
+          (if segment
+            (if (= stage :out)
+              (let [output (kafka/make-transmit producer (:topic journey) encoders)]
+                (output
+                 {:journey journey
+                  :stage :out
+                  :message message
+                  :traveled (conj traveled stage)
+                  :segment-id segment-id}))
+              (let [work (get stages stage)
+                    stage-id (java.util.UUID/randomUUID)
                     continuations (get-in journey [:course stage])]
-                (update
-                 :stage {:stage-id stage-id}
-                 {:completed (time/now)})
-                (doseq [continuation continuations]
-                  (transmit
-                   {:journey journey
-                    :stage continuation
-                    :message result
-                    :traveled (conj traveled stage)
-                    :segment-id segment-id})))
-              (catch Exception e
-                (update
-                 :stage {:stage-id stage-id}
-                 {:failed (time/now) :exception (serialize-exception e)})))))
+                (store
+                 :stage
+                 {:journey-id (:id journey)
+                  :stage stage
+                  :stage-id stage-id
+                  :started (time/now)})
+                (try
+                  (let [result (if (= message :land) :land (work message))]
+                    (update
+                     :stage {:stage-id stage-id}
+                     {:completed (time/now)})
+                    (doseq [continuation continuations]
+                      (transmit
+                       {:journey journey
+                        :stage continuation
+                        :message result
+                        :traveled (conj traveled stage)
+                        :segment-id segment-id})))
+                  (catch Exception e
+                    (let [exception (serialize-exception e)]
+                      (println "Exception in stage" stage stage-id)
+                      (clojure.pprint/pprint exception)
+                      (update
+                       :stage {:stage-id stage-id}
+                       {:failed (time/now) :exception exception})
+                      (doseq [continuation continuations]
+                        (transmit
+                         {:journey journey
+                          :stage continuation
+                          :message {}
+                          :traveled (conj traveled stage)
+                          :segment-id segment-id}))))))))
+          (catch Exception e
+            (let [exception (serialize-exception e)]
+              (println "Exception during journey" (:id journey))
+              (clojure.pprint/pprint exception))))
         (recur (receive))))))

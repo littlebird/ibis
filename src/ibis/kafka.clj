@@ -64,4 +64,3 @@
   [zookeeper topic]
   (with-open [zk (admin/zk-client zookeeper)]
     (admin/delete-topic zk topic)))
-
