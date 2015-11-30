@@ -35,7 +35,7 @@
 
 (defn ibis-in
   [segment]
-  (println "in segment!" (keys segment))
+  (println "in segment!" (count segment))
   segment)
 
 (def default-stages
@@ -88,3 +88,6 @@
   (await ibis)
   (println "IBIS started!"))
 
+(defn -main
+  [& args]
+  (start-ibis {}))

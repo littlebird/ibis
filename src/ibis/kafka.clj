@@ -23,6 +23,7 @@
    (merge
     {"zookeeper.connect" (str zookeeper-host \: zookeeper-port)
      "group.id" group
+     "fetch.message.max.bytes" "8320000"
      "auto.offset.reset" "largest"
      "auto.commit.interval.ms" "200"
      "auto.commit.enable" "true"}
