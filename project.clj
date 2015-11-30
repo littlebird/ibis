@@ -9,4 +9,13 @@
                  [clj-time "0.5.0"]
                  [clj-kafka "0.3.3"]
                  [noisesmith/component "0.2.5"]]
-  :main ibis.core)
+  :main ibis.core
+  :plugins [[s3-wagon-private "1.1.2"]]
+  :repositories ^:replace
+  [["central" {:url "http://repo1.maven.org/maven2"}]
+   ["clojure" {:url "http://build.clojure.org/releases"}]
+   ["clojure-snapshots" {:url "http://build.clojure.org/snapshots"}]
+   ["clojars" {:url "http://clojars.org/repo/"}]
+   ["private" {:url "s3p://littlebird-maven/releases/"
+               :creds :gpg
+               :sign-releases false}]])
