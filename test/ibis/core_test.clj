@@ -22,14 +22,15 @@
 
 (deftest ibis-test
   (testing "Ibis full circle"
-    (ibis/start {:stages stages})
-    (flock/launch! @ibis/ibis)
-    (flock/launch! @ibis/ibis)
-    (flock/launch! @ibis/ibis)
-    (let [journey (journey/submit! @ibis/ibis course)]
-      (doseq [x (range 15)]
-        (journey/push! @ibis/ibis journey {:x x}))
-      (journey/finish! @ibis/ibis journey)
-      (let [results (journey/pull! @ibis/ibis journey conj [])]
-        (println results)
-        (is (= (count results) 75))))))
+    (let [ibis (ibis/start {:stages stages})]
+      (flock/launch! ibis)
+      (flock/launch! ibis)
+      (flock/launch! ibis)
+      (let [journey (journey/submit! ibis course)]
+        (doseq [x (range 15)]
+          (journey/push! ibis journey {:x x}))
+        (journey/finish! ibis journey)
+        (let [results (journey/pull! ibis journey conj [])]
+          (println results)
+          (is (= (count results) 75))))
+      (ibis/stop ibis))))

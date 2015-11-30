@@ -33,12 +33,6 @@
 
   (stop [component]))
 
-(defn new-ibis
-  [config]
-  (map->Ibis config))
-
-(defonce ibis (agent nil))
-
 (defn ibis-in
   [segment]
   (println "in segment!" (keys segment))
@@ -61,19 +55,36 @@
    :encoders {}
    :decoders {}})
 
+(defn new-ibis
+  [config]
+  (let [stages (merge (:stages default-config) (:stages config))
+        config (assoc (merge default-config config) :stages stages)]
+    (map->Ibis config)))
+
 (defn stop
-  []
-  (send ibis (fn [ibis] (when ibis (component/stop ibis)) nil))
-  (await ibis))
+  [ibis]
+  (when ibis (component/stop ibis)))
 
 (defn start
   [config]
   (println "IBIS starting...")
-  (let [stages (merge (:stages default-config) (:stages config))
-        config (assoc (merge default-config config) :stages stages)]
-    (stop)
-    (send ibis (constantly (new-ibis config)))
-    (send ibis component/start)
-    (await ibis)
-    (println "IBIS started!")))
+  (let [ibis (new-ibis config)
+        ibis (component/start ibis)]
+    (println "IBIS started!")
+    ibis))
+
+(defonce ibis (agent nil))
+
+(defn stop-ibis
+  []
+  (send ibis stop)
+  (await ibis))
+
+(defn start-ibis
+  [config]
+  (println "IBIS starting...")
+  (stop)
+  (send ibis (constantly (start config)))
+  (await ibis)
+  (println "IBIS started!"))
 
