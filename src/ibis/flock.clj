@@ -10,12 +10,12 @@
    :backtrace (map str (.getStackTrace exception))})
 
 (defn launch!
-  [{:keys [transmit receive stages store update producer]}]
+  [{:keys [transmit receive stages store update producer encoders]}]
   (let [flock-id (java.util.UUID/randomUUID)]
     (future
       (loop [{:keys [journey stage message traveled segment-id] :as segment} (receive)]
         (if (= stage :out)
-          (let [output (kafka/make-transmit producer (:topic journey))]
+          (let [output (kafka/make-transmit producer (:topic journey) encoders)]
             (output
              {:journey journey
               :stage :out

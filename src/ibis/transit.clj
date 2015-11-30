@@ -16,24 +16,24 @@
    (constantly "'")
    str str))
 
-(def encoders
+(def default-encoders
   {:handlers
    {org.joda.time.DateTime time-writer
     java.sql.Timestamp time-writer}})
 
-(def decoders
+(def default-decoders
   {:handlers {}})
 
 (defn kafka-serialize
-  [segment]
+  [segment encoders]
   (let [baos (ByteArrayOutputStream. 512)
-        writer (transit/writer baos :json encoders)
+        writer (transit/writer baos :json (update default-encoders :handlers merge encoders))
         _ (transit/write writer segment)]
     (.toByteArray baos)))
 
 (defn kafka-deserialize
-  [bytes]
+  [bytes decoders]
   (let [bais (ByteArrayInputStream. bytes)
-        reader (transit/reader bais :json decoders)]
+        reader (transit/reader bais :json (update default-decoders :handlers merge decoders))]
     (transit/read reader)))
 

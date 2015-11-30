@@ -10,6 +10,7 @@
    group topic
    store update fetch
    complete
+   encoders decoders
    producer-opts consumer-opts]
 
   component/Lifecycle
@@ -18,8 +19,8 @@
     (let [zookeeper (zoo/connect zookeeper-host zookeeper-port)
           producer (kafka/make-producer zookeeper-host kafka-port producer-opts)
           consumer (kafka/make-consumer zookeeper-host zookeeper-port group consumer-opts)
-          transmit (kafka/make-transmit producer topic)
-          receive (kafka/make-receive consumer topic)]
+          transmit (kafka/make-transmit producer topic encoders)
+          receive (kafka/make-receive consumer topic decoders)]
       (zoo/create zookeeper ["ibis" "journeys"])
       (assoc
        component
@@ -56,7 +57,9 @@
    :store (fn [kind data]) ;(println "storing" kind)
    :update (fn [kind signature data]) ;(println "updating" kind signature)
    :fetch (fn [kind signature]) ;(println "fetching" kind signature)
-   :complete (partial map (partial merge-with merge))})
+   :complete (partial map (partial merge-with merge))
+   :encoders {}
+   :decoders {}})
 
 (defn stop
   []

@@ -29,15 +29,15 @@
     opts)))
 
 (defn make-transmit
-  [producer topic]
+  [producer topic encoders]
   (fn ibis-transmit
     [message]
-    (let [baos (transit/kafka-serialize message)
+    (let [baos (transit/kafka-serialize message encoders)
           encoded (producer/message topic baos)]
       (producer/send-message producer encoded))))
 
 (defn make-receive
-  [consumer topic]
+  [consumer topic decoders]
   (let [ready (>/chan 1000)
         receive (>/chan 1000)
         stream (consumer/create-message-stream consumer topic)
@@ -45,7 +45,7 @@
     (>/go
       (>/<! ready)
       (loop [message (.message (.next it))]
-        (let [payload (transit/kafka-deserialize message)]
+        (let [payload (transit/kafka-deserialize message decoders)]
           (>/>! receive payload)
           (>/<! ready))
         (recur (.message (.next it)))))
