@@ -60,7 +60,7 @@
                        {:failed (time/now) :exception exception})
                       (passage
                        transmit journey stage continuations
-                       result traveled segment-id)))))))
+                       {} traveled segment-id)))))))
           (catch Exception e
             (let [exception (serialize-exception e)]
               (println "Exception during journey" (:id journey))
