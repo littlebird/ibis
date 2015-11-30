@@ -1,4 +1,4 @@
-(defproject aviary/ibis "0.0.3"
+(defproject aviary/ibis "0.0.4"
   :description "Distribute jobs among any number of peers using Kafka"
   :url "http://github.com/littlebird/ibis"
   :license {:name "Eclipse Public License"
@@ -9,7 +9,7 @@
                  [clj-time "0.5.0"]
                  [clj-kafka "0.3.3"]
                  [noisesmith/component "0.2.5"]]
-  :main ibis.core
+  :repl-options {:init-ns ibis.core}
   :plugins [[s3-wagon-private "1.1.2"]]
   :repositories ^:replace
   [["central" {:url "http://repo1.maven.org/maven2"}]

@@ -88,6 +88,3 @@
   (await ibis)
   (println "IBIS started!"))
 
-(defn -main
-  [& args]
-  (start-ibis {}))
