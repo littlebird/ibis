@@ -1,5 +1,6 @@
 (ns ibis.flock
   (:require
+   [clojure.pprint :as pprint]
    [clj-time.core :as time]
    [ibis.kafka :as kafka]))
 
@@ -54,7 +55,7 @@
                   (catch Exception e
                     (let [exception (serialize-exception e)]
                       (println "Exception in stage" stage stage-id)
-                      (println (clojure.pprint/pprint exception))
+                      (println (pprint/pprint exception))
                       (update
                        :stage {:stage-id stage-id}
                        {:failed (time/now) :exception exception})
@@ -64,5 +65,5 @@
           (catch Exception e
             (let [exception (serialize-exception e)]
               (println "Exception during journey" (:id journey))
-              (println (clojure.pprint/pprint exception)))))
+              (println (pprint/pprint exception)))))
         (recur (receive))))))

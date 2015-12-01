@@ -68,8 +68,8 @@
 
 (defn clean-up!
   [{:keys [zookeeper zookeeper-connect]} {:keys [id topic]}]
-  (zoo/delete zookeeper ["ibis" "journeys" id])
-  (kafka/delete-topic zookeeper-connect topic))
+  ;; (kafka/delete-topic zookeeper-connect topic)
+  (zoo/delete zookeeper ["ibis" "journeys" id]))
 
 (defn pull!
   [ibis {:keys [receive course] :as journey} reducer initial]

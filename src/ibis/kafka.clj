@@ -12,7 +12,8 @@
   [zookeeper-host kafka-port opts]
   (producer/producer
    (merge
-    {"bootstrap.servers" (str zookeeper-host \: kafka-port)}
+    {"bootstrap.servers" (str zookeeper-host \: kafka-port)
+     "max.request.size" "8320000"}
     opts)
    (producer/byte-array-serializer)
    (producer/byte-array-serializer)))
@@ -46,14 +47,20 @@
     (>/go
       (>/<! ready)
       (loop [message (.message (.next it))]
-        (let [payload (transit/kafka-deserialize message decoders)]
-          (>/>! receive payload)
-          (>/<! ready))
+        (try
+          (let [payload (transit/kafka-deserialize message decoders)]
+            (>/>! receive payload)
+            (>/<! ready))
+          (catch Exception e
+            (println "Exception during receive loop!" e)))
         (recur (.message (.next it)))))
     (fn ibis-receive
       []
-      (>/>!! ready :ready)
-      (>/<!! receive))))
+      (try
+        (>/>!! ready :ready)
+        (>/<!! receive)
+        (catch Exception e
+          (println "Exception in receive!" e))))))
 
 (defn create-topic
   [zookeeper topic partitions]

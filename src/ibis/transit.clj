@@ -37,3 +37,10 @@
         reader (transit/reader bais :json (update default-decoders :handlers merge decoders))]
     (transit/read reader)))
 
+(defn read-topic
+  [dump]
+  (let [bytes (slurp dump)
+        reader (transit/reader (java.io.ByteArrayInputStream. (.getBytes bytes)) :json {})
+        segments (take-while identity (map (fn [x] (try (transit/read reader) (catch Exception e nil))) (range)))
+        groups (group-by (comp str :segment-id) segments)]
+    groups))
