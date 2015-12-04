@@ -10,6 +10,12 @@ Ibis is a library for managing the lifecycle of streaming tasks in a distributed
 
 The main concepts are that of the Journey, which goes through many Stages according to an acyclic directed graph defined by the Course the Journey takes.  These ideas are explained below.
 
+To include Ibis in your project add this line to the dependencies of your `project.clj`:
+
+```
+[littlebird/ibis "0.0.13"]
+```
+
 ### The Stages of the Journey
 
 Every Journey is defined by the Stages it goes through.  When initializing Ibis, you pass in all of the Stages that all of the Journeys your system will take may use.  A Stage is really just a Clojure function that takes a map and returns a map with a key designating it.  This way you can define your Courses with data, rather than passing functions around.
