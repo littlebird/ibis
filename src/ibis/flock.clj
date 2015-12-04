@@ -67,3 +67,8 @@
               (println "Exception during journey" (:id journey))
               (println (pprint/pprint exception)))))
         (recur (receive))))))
+
+(defn launch-all!
+  [ibis n]
+  (dotimes [_ n]
+    (launch! ibis)))
