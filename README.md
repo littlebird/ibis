@@ -6,7 +6,7 @@ Distribute tasks among any number of peers through Kafka
 
 ## Usage
 
-Ibis is a library for managing the lifecycle of streaming tasks in a distributed environment, and relies on Kafka and Zookeeper to communicate and keep track of the progress of these tasks.  
+Ibis is a library for managing the lifecycle of streaming tasks in a distributed environment, and relies on Kafka and Zookeeper to communicate and keep track of the progress of these tasks.
 
 The main concepts are that of the Journey, which goes through many Stages according to an acyclic directed graph defined by the Course the Journey takes.  These ideas are explained below.
 
@@ -23,35 +23,7 @@ Here is an example of a map of Stages you might pass to Ibis on startup:
    :str (fn [{:keys [n]}] {:s (str n)})})
 ```
 
-Once you have the Stages you will need on your Journey, you can start Ibis:
-
-```clj
-(require '[ibis.core :as ibis])
-
-(def ibis (ibis/start {:stages stages}))
-```
-
-There are a number of other options you can pass into `ibis/start` to configure your Ibis instance.  We explain these below in the section `Configuring Ibis`.
-
-### Launching Ibis
-
-Now that we have an Ibis instance, we have control over how many threads are committed to processing Ibis tasks.  These threads are collectively referred to as the Flock.
-
-```clj
-(require '[ibis.flock :as flock])
-
-(flock/launch-all! ibis 15)
-```
-
-This launches 15 threads all waiting for Ibis messages to come through Kafka.  If you like, you can dynamically add more threads during runtime by calling `flock/launch!`:
-
-```clj
-(flock/launch! ibis)
-```
-
-Each time you do this another thread will be added to the Flock.
-
-Now we are ready to define the Course of our Journey.
+Now we are ready to define the Course our Journey will take.
 
 ### The Course of the Journey
 
@@ -80,9 +52,37 @@ Notice that there are two Stages present in these Course examples that we did no
 * `:in` is where data enters the data flow defined by our Course
 * `:out` is where data that has flowed through the Stages of the Journey finish processing and should be sent to output.
 
-Notice there is a lot of flexibility about how to define this data flow, but one thing we should never do is create a loop in this graph.  
+There is a lot of flexibility about how to define this data flow, but one thing we should never do is create a loop in this graph.  
 
 Now that we have a Course, time to start the Journey.
+
+### Launching Ibis
+
+Once you have the Stages you will need on your Journey, you can start Ibis:
+
+```clj
+(require '[ibis.core :as ibis])
+
+(def ibis (ibis/start {:stages stages}))
+```
+
+There are a number of other options you can pass into `ibis/start` to configure your Ibis instance.  We explain these below in the section `Configuring Ibis`.
+
+Now that we have an Ibis instance, we have control over how many threads are committed to processing Ibis tasks.  These threads are collectively referred to as the Flock.
+
+```clj
+(require '[ibis.flock :as flock])
+
+(flock/launch-all! ibis 15)
+```
+
+This launches 15 threads all waiting for Ibis messages to come through Kafka.  If you like, you can dynamically add more threads during runtime by calling `flock/launch!`:
+
+```clj
+(flock/launch! ibis)
+```
+
+Each time you do this another thread will be added to the Flock.
 
 ### The Journey
 
