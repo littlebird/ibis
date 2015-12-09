@@ -1,6 +1,7 @@
 (ns ibis.flock
   (:require
    [clojure.pprint :as pprint]
+   [taoensso.timbre :as log]
    [clj-time.core :as time]
    [ibis.kafka :as kafka]))
 
@@ -54,8 +55,8 @@
                      result traveled segment-id))
                   (catch Exception e
                     (let [exception (serialize-exception e)]
-                      (println "Exception in stage" stage stage-id)
-                      (println (pprint/pprint exception))
+                      (log/error "Exception in stage" stage stage-id)
+                      (log/error (pprint/pprint exception))
                       (update
                        :stage {:stage-id stage-id}
                        {:failed (time/now) :exception exception})
@@ -64,8 +65,8 @@
                        {} traveled segment-id)))))))
           (catch Exception e
             (let [exception (serialize-exception e)]
-              (println "Exception during journey" (:id journey))
-              (println (pprint/pprint exception)))))
+              (log/error "Exception during journey" (:id journey))
+              (log/error (pprint/pprint exception)))))
         (recur (receive))))))
 
 (defn launch-all!

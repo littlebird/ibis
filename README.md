@@ -124,6 +124,23 @@ Now you can pull in the results of this journey with `journey/pull!`.  This will
 ---> [{:s "6"} {:s "10"} {:s "6"} {:s "2"} {:s "89"} {:s "93"}]
 ```
 
+### Streaming Journey
+
+If you do not want to worry about the Journey finishing before you get results, you can pass a `core.async` channel into `pull!` to get results as they come in:
+
+```clj
+(require '[clojure.core.async :as >])
+
+(def streaming-chan (>/chan)) ;; make a channel for streaming
+(def pull-results (future (journey/pull! ibis journey conj [] streaming-chan))) ;; pass the channel in
+(>/go-loop []
+  (let [result (>/<! streaming-chan)] ;; get results one at a time
+    (println result)
+    (recur)))
+
+@pull-results ;; wait for all results
+```
+
 ### Configuring Ibis
 
 Ibis accepts a number of configuration options.  Here are the possible options with their default values:
@@ -137,7 +154,9 @@ Ibis accepts a number of configuration options.  Here are the possible options w
    :group "ibis"
    :topic "ibis-journeys"
    :encoders {}
-   :decoders {}})
+   :decoders {}
+   :producer-opts {}
+   :consumer-opts {}})
 ```
 
 ## License

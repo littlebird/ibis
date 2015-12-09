@@ -5,14 +5,18 @@
    [ibis.journey :as journey]
    [ibis.core :as ibis]))
 
-;; kafka must be running for these tests to pass!
+;; kafka and zookeeper must be running for these tests to pass!
 
 (def stages
   {:a (fn [{:keys [x]}] {:x (str x "-a")})
    :b (fn [{:keys [x]}] {:x (str x "-b")})
    :c (fn [{:keys [x]}] {:x (str x "-c")})
    :d (fn [{:keys [x]}] {:x (str x "-d")})
-   :e (fn [{:keys [x]}] {:x (str x "-e")})})
+   :e (fn [{:keys [x]}] {:x (str x "-e")})
+
+   :inc (fn [m] (update m :n inc))
+   :add-five (fn [m] (update m :n (partial + 5)))
+   :str (fn [{:keys [n]}] {:s (str n)})})
 
 (def course
   {:in [:a :b :c]
@@ -58,11 +62,6 @@
             (is (= (count results-b) 75)))))
       (ibis/stop ibis))))
 
-(def readme-stages
-  {:inc (fn [m] (update m :n inc))
-   :add-five (fn [m] (update m :n (partial + 5)))
-   :str (fn [{:keys [n]}] {:s (str n)})})
-
 (def branching-course
   {:in [:inc :add-five]
    :inc [:str]
@@ -71,7 +70,7 @@
 
 (deftest ibis-readme-journey
   (testing "Example from README"
-    (let [ibis (ibis/start {:stages readme-stages})]
+    (let [ibis (ibis/start {:stages stages})]
       (flock/launch-all! ibis 3)
       (let [journey (journey/submit! ibis branching-course)]
         (doseq [part [{:n 1} {:n 5} {:n 88}]]

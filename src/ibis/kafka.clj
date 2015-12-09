@@ -1,6 +1,7 @@
 (ns ibis.kafka
   (:require
    [clojure.core.async :as >]
+   [taoensso.timbre :as log]
    [clj-kafka.core :as kafka]
    [clj-kafka.zk :as zookeeper]
    [clj-kafka.new.producer :as producer]
@@ -52,7 +53,7 @@
             (>/>! receive payload)
             (>/<! ready))
           (catch Exception e
-            (println "Exception during receive loop!" e)))
+            (log/error "Exception during receive loop!" e)))
         (recur (.message (.next it)))))
     (fn ibis-receive
       []
@@ -60,7 +61,7 @@
         (>/>!! ready :ready)
         (>/<!! receive)
         (catch Exception e
-          (println "Exception in receive!" e))))))
+          (log/error "Exception in receive!" e))))))
 
 (defn create-topic
   [zookeeper topic partitions]

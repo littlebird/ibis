@@ -1,4 +1,4 @@
-(defproject littlebird/ibis "0.0.14"
+(defproject littlebird/ibis "0.0.15"
   :description "Distribute jobs among any number of peers using Kafka"
   :url "http://github.com/littlebird/ibis"
   :license {:name "Eclipse Public License"
@@ -6,9 +6,10 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.371"]
                  [com.cognitect/transit-clj "0.8.275"]
+                 [com.stuartsierra/component "0.3.1"]
+                 [com.taoensso/timbre "4.1.4"]
                  [clj-time "0.5.0"]
-                 [clj-kafka "0.3.3"]
-                 [noisesmith/component "0.2.5"]]
+                 [clj-kafka "0.3.3"]]
   :repl-options {:init-ns ibis.core}
   :plugins [[s3-wagon-private "1.1.2"]]
   :repositories ^:replace

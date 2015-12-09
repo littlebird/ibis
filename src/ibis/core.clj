@@ -1,6 +1,7 @@
 (ns ibis.core
   (:require
-   [noisesmith.component :as component]
+   [com.stuartsierra.component :as component]
+   [taoensso.timbre :as log]
    [ibis.zookeeper :as zoo]
    [ibis.kafka :as kafka]))
 
@@ -35,7 +36,7 @@
 
 (defn ibis-in
   [segment]
-  (println "in segment!" (count segment))
+  (log/trace "in segment!" (count segment))
   segment)
 
 (def default-stages
@@ -53,7 +54,9 @@
    :fetch (fn [kind signature]) ;(println "fetching" kind signature)
    :complete (partial map (partial merge-with merge))
    :encoders {}
-   :decoders {}})
+   :decoders {}
+   :producer-opts {}
+   :consumer-opts {}})
 
 (defn new-ibis
   [config]
@@ -67,10 +70,10 @@
 
 (defn start
   [config]
-  (println "IBIS starting...")
+  (log/info "IBIS starting...")
   (let [ibis (new-ibis config)
         ibis (component/start ibis)]
-    (println "IBIS started!")
+    (log/info "IBIS started!")
     ibis))
 
 (defonce ibis (agent nil))
@@ -82,9 +85,7 @@
 
 (defn start-ibis
   [config]
-  (println "IBIS starting...")
   (stop)
   (send ibis (constantly (start config)))
-  (await ibis)
-  (println "IBIS started!"))
+  (await ibis))
 

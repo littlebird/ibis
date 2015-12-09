@@ -1,6 +1,8 @@
 (ns ibis.journey
   (:require
+   [clojure.core.async :as >]
    [clj-time.core :as time]
+   [taoensso.timbre :as log]
    [ibis.zookeeper :as zoo]
    [ibis.kafka :as kafka]))
 
@@ -24,7 +26,7 @@
         consumer (kafka/make-consumer zookeeper-host zookeeper-port (str journey-id) {})
         receive (kafka/make-receive consumer topic decoders)
         journey {:id journey-id :course course :topic topic}]
-    (println "SUBMIT!" course)
+    (log/info "SUBMIT!" course)
     (zoo/create zookeeper ["ibis" "journeys" journey-id "segments"])
     (kafka/create-topic (str zookeeper-host \: zookeeper-port) topic 1)
     (store :journey (assoc journey :started (time/now)))
@@ -33,7 +35,7 @@
 (defn push!
   [{:keys [transmit zookeeper]} journey segment]
   (let [segment-id (java.util.UUID/randomUUID)]
-    (println "PUSH!" segment-id)
+    (log/info "PUSH!" segment-id)
     (zoo/create zookeeper ["ibis" "journeys" (:id journey) "segments" segment-id])
     (transmit
      {:journey (dissoc journey :receive)
@@ -51,7 +53,7 @@
    {:keys [id] :as journey}
    paths segments landed
    {:keys [segment-id] :as segment}]
-  (println
+  (log/debug
    "LANDED" id
    "segment" segment-id
    "- paths:segments:landed"
@@ -72,17 +74,21 @@
   (zoo/delete zookeeper ["ibis" "journeys" id]))
 
 (defn pull!
-  [ibis {:keys [receive course] :as journey} reducer initial]
-  (let [paths (course->paths course)]
-    (loop [segment (receive)
-           segments {}
-           landed []]
-      (let [segments (update segments (:segment-id segment) conj segment)
-            landed (if (= :land (:message segment)) (conj landed segment) landed)]
-        (if (all-landed? ibis journey paths segments landed segment)
-          (let [landed-id (:segment-id (first landed))
-                output-segments (mapv :message (apply concat (vals (dissoc segments landed-id))))
-                results (reduce reducer initial output-segments)]
-            (clean-up! ibis journey)
-            results)
-          (recur (receive) segments landed))))))
+  ([ibis journey reducer initial]
+   (pull! ibis journey reducer initial nil))
+  ([ibis {:keys [receive course] :as journey} reducer initial chan]
+   (let [paths (course->paths course)]
+     (loop [segment (receive)
+            segments {}
+            landed []]
+       (let [segments (update segments (:segment-id segment) conj segment)
+             landed (if (= :land (:message segment)) (conj landed segment) landed)]
+         (if chan
+           (>/put! chan segment))
+         (if (all-landed? ibis journey paths segments landed segment)
+           (let [landed-id (:segment-id (first landed))
+                 output-segments (mapv :message (apply concat (vals (dissoc segments landed-id))))
+                 results (reduce reducer initial output-segments)]
+             (clean-up! ibis journey)
+             results)
+           (recur (receive) segments landed)))))))
