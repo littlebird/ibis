@@ -32,7 +32,7 @@
 (defn periodic-submit
   ([ibis course f] (periodic-submit ibis course f nil))
   ([ibis course f chan]
-   (log/info "JOURNEY FIRED!" course)
+   (log/info "JOURNEY TRIGGERED" course)
    (let [journey (journey/submit! ibis course)]
      (f (partial journey/push! ibis journey))
      (journey/finish! ibis journey)
@@ -52,5 +52,5 @@
   [{:keys [zookeeper]} path f]
   (when-not (zoo/exists? zookeeper path)
     (zoo/create zookeeper path {:persistent? false})
-    (log/info "PERFORMED ONCE" path)
+    (log/info "UNIQUELY" path)
     (f)))

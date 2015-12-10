@@ -141,6 +141,55 @@ If you do not want to worry about the Journey finishing before you get results, 
 @pull-results ;; wait for all results
 ```
 
+### Scheduling Journeys
+
+Some things need to happen on a regular basis.  For this need Ibis provides a scheduler which can be used to start Journeys at periodic intervals.
+
+Once you have started ibis, in the resulting component map there is a function that lives under the `:schedule` key which can be used to schedule Journeys to occur periodically:
+
+```clj
+(require '[clj-time.core :as time])
+
+(defn periodic-journey
+  [push!]
+  (doseq [n (range 15)]
+    (push! {:n n})))
+
+(def schedule (:schedule ibis))
+(def stop
+  (schedule
+    ibis ;; pass in the ibis instance
+    (time/plus (time/now) (time/hours 3)) ;; give the scheduler a start time, here 3 hours from now
+    (time/hours 1) ;; tell it how often the journey should be run
+    branching-course ;; the course for the periodic journey
+    periodic-journey)) ;; the function to run periodically, which pushes the data into the journey
+```
+
+The function you pass as the last argument to `schedule` will be called with a single argument, `push!`.  This is a partial of `ibis.journey/push!` (with `ibis` and `journey` bound) which pushes each given piece of data onto the input for the Journey, as defined by the Course supplied in the previous argument to `schedule`.
+
+You don't need to worry about calling `journey/submit!` or `journey/finish!` or even `journey/pull!`.  This is all taken care of by the scheduler.  If you do want some results from these periodic Journeys (as in, they are not just run for side effects), you can pass in a `core.async` channel as the final argument and any results will be passed to you as they come in.
+
+### Uniquely Calling a Function
+
+Sometimes in a distributed environment with many nodes all running the same code, you want something to just happen once!  If all the boxes have the same code, how do you run something and make sure it happens only once across all instances, rather than once for each box running the code?
+
+Enter `ibis.tempo/uniquely!`:
+
+```clj
+(require '[ibis.tempo :as tempo])
+
+(defn singularity
+  []
+  (println "Trouble if this runs more than once"))
+
+(tempo/uniquely!
+  ibis
+  ["path" "that" "uniquely" "identifies" "call"]
+  singularity)
+```
+
+Using Zookeeper, we can guarantee this function is only ever run once per bootup, no matter how many nodes try to run it any number of times.  If you shut the process down and restart it, it will run again however.  This is to establish singular processes that are only occuring in one instance at a time.  
+
 ### Configuring Ibis
 
 Ibis accepts a number of configuration options.  Here are the possible options with their default values:
