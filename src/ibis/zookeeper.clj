@@ -43,14 +43,15 @@
   (:numChildren (exists? zookeeper path)))
 
 (defn create
-  [zookeeper path]
-  (doseq [span (range 1 (inc (count path)))]
-    (let [subpath (take span path)]
-      (if-not (exists? zookeeper subpath)
-        (zookeeper/create
-         @(:connection zookeeper)
-         (pathify subpath)
-         :persistent? true)))))
+  ([zookeeper path] (create zookeeper path {:persistent? true}))
+  ([zookeeper path {:keys [persistent?]}]
+   (doseq [span (range 1 (inc (count path)))]
+     (let [subpath (take span path)]
+       (if-not (exists? zookeeper subpath)
+         (zookeeper/create
+          @(:connection zookeeper)
+          (pathify subpath)
+          :persistent? persistent?))))))
 
 (defn delete
   [zookeeper path]

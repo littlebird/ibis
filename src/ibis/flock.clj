@@ -36,33 +36,33 @@
                   :message message
                   :traveled (conj traveled stage)
                   :segment-id segment-id}))
-              (let [work (get stages stage)
-                    stage-id (java.util.UUID/randomUUID)
-                    continuations (get-in journey [:course stage])]
-                (store
-                 :stage
-                 {:journey-id (:id journey)
-                  :stage stage
-                  :stage-id stage-id
-                  :started (time/now)})
-                (try
-                  (let [result (if (= message :land) :land (work message))]
-                    (update
-                     :stage {:stage-id stage-id}
-                     {:completed (time/now)})
-                    (passage
-                     transmit journey stage continuations
-                     result traveled segment-id))
-                  (catch Exception e
-                    (let [exception (serialize-exception e)]
-                      (log/error "Exception in stage" stage stage-id)
-                      (log/error (pprint/pprint exception))
+              (if-let [work (get stages stage)]
+                (let [stage-id (java.util.UUID/randomUUID)
+                      continuations (get-in journey [:course stage])]
+                  (store
+                   :stage
+                   {:journey-id (:id journey)
+                    :stage stage
+                    :stage-id stage-id
+                    :started (time/now)})
+                  (try
+                    (let [result (if (= message :land) :land (work message))]
                       (update
                        :stage {:stage-id stage-id}
-                       {:failed (time/now) :exception exception})
+                       {:completed (time/now)})
                       (passage
                        transmit journey stage continuations
-                       {} traveled segment-id)))))))
+                       result traveled segment-id))
+                    (catch Exception e
+                      (let [exception (serialize-exception e)]
+                        (log/error "Exception in stage" stage stage-id)
+                        (log/error (pprint/pprint exception))
+                        (update
+                         :stage {:stage-id stage-id}
+                         {:failed (time/now) :exception exception})
+                        (passage
+                         transmit journey stage continuations
+                         {} traveled segment-id))))))))
           (catch Exception e
             (let [exception (serialize-exception e)]
               (log/error "Exception during journey" (:id journey))

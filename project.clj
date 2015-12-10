@@ -7,6 +7,7 @@
                  [org.clojure/core.async "0.2.371"]
                  [com.cognitect/transit-clj "0.8.275"]
                  [com.stuartsierra/component "0.3.1"]
+                 ;; [noisesmith/component "0.2.5"]
                  [com.taoensso/timbre "4.1.4"]
                  [clj-time "0.5.0"]
                  [clj-kafka "0.3.3"]]

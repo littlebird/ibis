@@ -3,7 +3,8 @@
    [com.stuartsierra.component :as component]
    [taoensso.timbre :as log]
    [ibis.zookeeper :as zoo]
-   [ibis.kafka :as kafka]))
+   [ibis.kafka :as kafka]
+   [ibis.tempo :as tempo]))
 
 (defrecord Ibis
   [stages
@@ -12,7 +13,8 @@
    store update fetch
    complete
    encoders decoders
-   producer-opts consumer-opts]
+   producer-opts consumer-opts
+   scheduler-threads]
 
   component/Lifecycle
 
@@ -21,7 +23,8 @@
           producer (kafka/make-producer zookeeper-host kafka-port producer-opts)
           consumer (kafka/make-consumer zookeeper-host zookeeper-port group consumer-opts)
           transmit (kafka/make-transmit producer topic encoders)
-          receive (kafka/make-receive consumer topic decoders)]
+          receive (kafka/make-receive consumer topic decoders)
+          scheduler (tempo/new-scheduler scheduler-threads)]
       (zoo/create zookeeper ["ibis" "journeys"])
       (assoc
        component
@@ -30,7 +33,8 @@
        :producer producer
        :consumer consumer
        :transmit transmit
-       :receive receive)))
+       :receive receive
+       :schedule (partial tempo/periodically scheduler))))
 
   (stop [component]))
 
@@ -56,7 +60,8 @@
    :encoders {}
    :decoders {}
    :producer-opts {}
-   :consumer-opts {}})
+   :consumer-opts {}
+   :scheduler-threads 20})
 
 (defn new-ibis
   [config]
