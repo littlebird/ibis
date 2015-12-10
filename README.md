@@ -13,7 +13,7 @@ The main concepts are that of the Journey, which goes through many Stages accord
 To include Ibis in your project add this line to the dependencies of your `project.clj`:
 
 ```
-[littlebird/ibis "0.0.13"]
+[littlebird/ibis "0.0.15"]
 ```
 
 ### The Stages of the Journey
