@@ -1,7 +1,12 @@
 (ns ibis.zookeeper
   (:require
    [clojure.string :as string]
-   [zookeeper :as zookeeper]))
+   [zookeeper :as zookeeper]
+   [zookeeper.data :as data]))
+
+(defn epoch
+  []
+  (.getTime (java.util.Date.)))
 
 (defn pathify
   [path]
@@ -35,8 +40,14 @@
   (with-reconnect
     (fn [connection path]
       (zookeeper/exists connection (pathify path)))
-    zookeeper
-    path))
+    zookeeper path))
+
+(defn children
+  [zookeeper path]
+  (with-reconnect
+    (fn [connection path]
+      (zookeeper/children connection (pathify path)))
+    zookeeper path))
 
 (defn count-children
   [zookeeper path]
@@ -52,6 +63,34 @@
           @(:connection zookeeper)
           (pathify subpath)
           :persistent? persistent?))))))
+
+(def data-map
+  {:int data/to-int
+   :long data/to-long
+   :double data/to-double
+   :char data/to-char
+   :string data/to-string})
+
+(defn get-data
+  ([zookeeper path] (get-data zookeeper path :long))
+  ([zookeeper path convert-key]
+   (let [convert (get data-map convert-key data/to-long)
+         data (with-reconnect
+                (fn [connection path]
+                  (zookeeper/data connection (pathify path)))
+                zookeeper path)]
+     (if-let [data (:data data)]
+       (convert data)))))
+
+(defn set-data
+  [zookeeper path data]
+  (let [info (exists? zookeeper path)
+        version (:version info)]
+    (zookeeper/set-data
+     @(:connection zookeeper)
+     (pathify path)
+     (data/to-bytes data)
+     version)))
 
 (defn delete
   [zookeeper path]

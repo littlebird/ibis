@@ -38,6 +38,11 @@
      (journey/finish! ibis journey)
      (future (journey/pull! ibis journey conj [] chan)))))
 
+(defn schedule
+  ([scheduler f period] (schedule scheduler f period 0))
+  ([scheduler f period delay]
+   (.scheduleAtFixedRate scheduler f delay period TimeUnit/MILLISECONDS)))
+
 (defn periodically
   ([scheduler ibis when interval course f]
    (periodically scheduler ibis when interval course f nil))
@@ -45,7 +50,7 @@
    (let [delay (milliseconds-between (time/now) when)
          period (milliseconds-of interval)
          work (partial periodic-submit ibis course f chan)
-         task (.scheduleAtFixedRate scheduler work delay period TimeUnit/MILLISECONDS)]
+         task (schedule scheduler work period delay)]
      #(.cancel task true))))
 
 (defn uniquely!

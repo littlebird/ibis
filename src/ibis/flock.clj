@@ -22,7 +22,7 @@
       :segment-id segment-id})))
 
 (defn launch!
-  [{:keys [transmit receive stages store update producer encoders]}]
+  [{:keys [ibis-id transmit receive stages store update producer encoders]}]
   (let [flock-id (java.util.UUID/randomUUID)]
     (future
       (loop [{:keys [journey stage message traveled segment-id] :as segment} (receive)]
@@ -41,15 +41,20 @@
                       continuations (get-in journey [:course stage])]
                   (store
                    :stage
-                   {:journey-id (:id journey)
-                    :stage stage
-                    :stage-id stage-id
-                    :started (time/now)})
+                   (merge
+                    segment
+                    {:ibis-id ibis-id
+                     :journey-id (:id journey)
+                     :stage stage
+                     :stage-id stage-id
+                     :started (time/now)
+                     :status "running"}))
                   (try
                     (let [result (if (= message :land) :land (work message))]
                       (update
                        :stage {:stage-id stage-id}
-                       {:completed (time/now)})
+                       {:completed (time/now)
+                        :status "complete"})
                       (passage
                        transmit journey stage continuations
                        result traveled segment-id))
@@ -59,7 +64,9 @@
                         (log/error (pprint/pprint exception))
                         (update
                          :stage {:stage-id stage-id}
-                         {:failed (time/now) :exception exception})
+                         {:failed (time/now)
+                          :exception exception
+                          :status "failed"})
                         (passage
                          transmit journey stage continuations
                          {} traveled segment-id))))))))
