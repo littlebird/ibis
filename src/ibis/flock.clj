@@ -3,6 +3,7 @@
    [clojure.pprint :as pprint]
    [taoensso.timbre :as log]
    [clj-time.core :as time]
+   [com.climate.claypoole :as pool]
    [ibis.kafka :as kafka]))
 
 (defn serialize-exception
@@ -22,9 +23,11 @@
       :segment-id segment-id})))
 
 (defn launch!
-  [{:keys [transmit receive stages store update producer encoders]}]
+  [{:keys [transmit receive stages store update producer encoders pool]}]
   (let [flock-id (java.util.UUID/randomUUID)]
-    (future
+    (log/trace "IBIS flock thread" flock-id "launched")
+    (pool/future
+      pool
       (loop [{:keys [journey stage message traveled segment-id] :as segment} (receive)]
         (try
           (if segment
