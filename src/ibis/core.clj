@@ -4,7 +4,8 @@
    [taoensso.timbre :as log]
    [ibis.zookeeper :as zoo]
    [ibis.kafka :as kafka]
-   [ibis.tempo :as tempo]))
+   [ibis.tempo :as tempo]
+   [ibis.heartbeat :as heartbeat]))
 
 (defrecord Ibis
   [stages
@@ -39,7 +40,7 @@
            :receive receive
            :schedule (partial tempo/periodically scheduler))]
       (zoo/create zookeeper ["ibis" "journeys"])
-      (tempo/schedule scheduler (partial tempo/heartbeat ibis))
+      (tempo/schedule scheduler (partial heartbeat/beat ibis))
       ibis))
 
   (stop [component]))
