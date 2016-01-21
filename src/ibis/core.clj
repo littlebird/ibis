@@ -2,6 +2,7 @@
   (:require
    [com.stuartsierra.component :as component]
    [taoensso.timbre :as log]
+   [com.climate.claypoole :as pool]
    [ibis.zookeeper :as zoo]
    [ibis.kafka :as kafka]
    [ibis.tempo :as tempo]
@@ -15,7 +16,7 @@
    complete
    encoders decoders
    producer-opts consumer-opts
-   scheduler-threads
+   flock-threads scheduler-threads
    beat-period]
 
   component/Lifecycle
@@ -28,6 +29,7 @@
           transmit (kafka/make-transmit producer topic encoders)
           receive (kafka/make-receive consumer topic decoders)
           scheduler (tempo/new-scheduler scheduler-threads)
+          pool (pool/threadpool flock-threads)
           ibis 
           (assoc
            component
@@ -38,7 +40,9 @@
            :consumer consumer
            :transmit transmit
            :receive receive
+           :pool pool
            :schedule (partial tempo/periodically scheduler))]
+      (log/trace "IBIS starting" flock-threads "threads")
       (zoo/create zookeeper ["ibis" "journeys"])
       (tempo/schedule scheduler (partial heartbeat/beat ibis))
       ibis))
@@ -68,6 +72,7 @@
    :decoders {}
    :producer-opts {}
    :consumer-opts {}
+   :flock-threads 20
    :scheduler-threads 20
    :beat-period 30000})
 
