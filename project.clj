@@ -1,4 +1,4 @@
-(defproject littlebird/ibis "0.0.18"
+(defproject littlebird/ibis "0.0.19"
   :description "Distribute jobs among any number of peers using Kafka"
   :url "http://github.com/littlebird/ibis"
   :license {:name "Eclipse Public License"
@@ -7,7 +7,6 @@
                  [org.clojure/core.async "0.2.371"]
                  [com.cognitect/transit-clj "0.8.275"]
                  [com.stuartsierra/component "0.3.1"]
-                 ;; [noisesmith/component "0.2.5"]
                  [com.taoensso/timbre "4.1.4"]
                  [com.climate/claypoole "1.1.0"]
                  [clj-time "0.5.0"]

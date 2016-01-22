@@ -23,7 +23,8 @@
       :segment-id segment-id})))
 
 (defn launch!
-  [{:keys [ibis-id transmit receive stages store update producer encoders pool]}]
+  [{:keys [ibis-id transmit receive stages store update producer encoders pool]
+    :as ibis}]
   (let [flock-id (java.util.UUID/randomUUID)]
     (log/trace "IBIS flock thread" flock-id "launched")
     (pool/future
@@ -53,14 +54,20 @@
                      :started (time/now)
                      :status "running"}))
                   (try
-                    (let [result (if (= message :land) :land (work message))]
+                    (let [result
+                          (if (= message :land)
+                            :land
+                            (work (assoc message :ibis ibis)))]
                       (update
                        :stage {:stage-id stage-id}
                        {:completed (time/now)
                         :status "complete"})
                       (passage
                        transmit journey stage continuations
-                       result traveled segment-id))
+                       (if (keyword? result)
+                         result
+                         (dissoc result :ibis))
+                       traveled segment-id))
                     (catch Exception e
                       (let [exception (serialize-exception e)]
                         (log/error "Exception in stage" stage stage-id)

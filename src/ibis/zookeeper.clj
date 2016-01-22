@@ -58,7 +58,8 @@
   ([zookeeper path {:keys [persistent?]}]
    (doseq [span (range 1 (inc (count path)))]
      (let [subpath (take span path)]
-       (if-not (exists? zookeeper subpath)
+       (if-let [info (exists? zookeeper subpath)]
+         info
          (zookeeper/create
           @(:connection zookeeper)
           (pathify subpath)
@@ -84,7 +85,7 @@
 
 (defn set-data
   [zookeeper path data]
-  (let [info (exists? zookeeper path)
+  (let [info (or (exists? zookeeper path) (create zookeeper path))
         version (:version info)]
     (zookeeper/set-data
      @(:connection zookeeper)

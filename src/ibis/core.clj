@@ -44,7 +44,7 @@
            :schedule (partial tempo/periodically scheduler))]
       (log/trace "IBIS starting" flock-threads "threads")
       (zoo/create zookeeper ["ibis" "journeys"])
-      (tempo/schedule scheduler (partial heartbeat/beat ibis))
+      (tempo/schedule scheduler (partial heartbeat/beat ibis) 30000 0)
       ibis))
 
   (stop [component]))
