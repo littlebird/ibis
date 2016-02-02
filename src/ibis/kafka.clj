@@ -31,6 +31,10 @@
      "auto.commit.enable" "true"}
     opts)))
 
+(defn shutdown-consumer
+  [consumer]
+  (consumer/shutdown consumer))
+
 (defn make-transmit
   [producer topic encoders]
   (fn ibis-transmit

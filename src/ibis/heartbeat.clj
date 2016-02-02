@@ -1,5 +1,6 @@
 (ns ibis.heartbeat
   (:require
+   [taoensso.timbre :as log]
    [ibis.zookeeper :as zoo]))
 
 (def node-path ["ibis" "nodes"])
@@ -32,7 +33,7 @@
 
 (defn handle-node-down
   [{:keys [zookeeper transmit fetch] :as ibis} node-id]
-  (println "NODE DOWN!" node-id)
+  (log/info "NODE DOWN!" node-id)
   (zoo/delete zookeeper (conj node-path node-id))
   (let [incomplete
         (fetch
@@ -40,7 +41,7 @@
          {:ibis-id (java.util.UUID/fromString node-id)
           :status "running"})]
     (doseq [segment incomplete]
-      (println "INCOMPLETE SEGMENT" (:stage segment) " ---------- RELAUNCHING")
+      (log/info "INCOMPLETE SEGMENT" (:stage segment) "---------- RELAUNCHING")
       (transmit
        (deserialize-segment segment)))))
 

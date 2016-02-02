@@ -30,7 +30,7 @@
     (zoo/create zookeeper ["ibis" "journeys" journey-id "segments"])
     (kafka/create-topic (str zookeeper-host \: zookeeper-port) topic 1)
     (store :journey (assoc journey :started (time/now)))
-    (assoc journey :receive receive)))
+    (assoc journey :consumer consumer :receive receive)))
 
 (defn push!
   [{:keys [transmit zookeeper]} journey segment]
@@ -38,7 +38,7 @@
     (log/info "PUSH!" segment-id)
     (zoo/create zookeeper ["ibis" "journeys" (:id journey) "segments" segment-id])
     (transmit
-     {:journey (dissoc journey :receive)
+     {:journey (dissoc journey :consumer :receive)
       :stage :in
       :message segment
       :traveled []
@@ -69,7 +69,8 @@
     false))
 
 (defn clean-up!
-  [{:keys [zookeeper zookeeper-connect]} {:keys [id topic]}]
+  [{:keys [zookeeper zookeeper-connect]} {:keys [id topic consumer]}]
+  (kafka/shutdown-consumer consumer)
   ;; (kafka/delete-topic zookeeper-connect topic)
   (zoo/delete zookeeper ["ibis" "journeys" id]))
 
