@@ -25,7 +25,9 @@
 
 (defn reconnect
   [{:keys [host port connection]}]
-  (swap! connection (constantly (establish-connection host port))))
+  (swap! connection (fn [old]
+                      (zookeeper/close old)
+                      (establish-connection host port))))
 
 (defn with-reconnect
   [f zookeeper & args]
