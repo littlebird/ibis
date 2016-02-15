@@ -47,14 +47,16 @@
 
 (defn beat
   [{:keys [zookeeper ibis-id beat-period] :as ibis}]
-  (try
-    (let [info (zoo/set-data
-                zookeeper (conj node-path ibis-id) 1)
-          now (:mtime info)
-          nodes (zoo/children zookeeper node-path)]
-      (doseq [node nodes]
-        (let [node-info (zoo/exists? zookeeper (conj node-path node))
-              then (:mtime node-info)]
-          (if (node-down? now then beat-period)
-            (handle-node-down ibis node)))))
-    (catch Exception e (println e))))
+  (let [id-path (conj node-path ibis-id)]
+    (try
+      (when-not (zoo/exists? zookeeper id-path)
+        (zoo/create zookeeper id-path))
+      (let [info (zoo/set-data zookeeper id-path 1)
+            now (:mtime info)
+            nodes (zoo/children zookeeper node-path)]
+        (doseq [node nodes]
+          (let [node-info (zoo/exists? zookeeper (conj node-path node))
+                then (:mtime node-info)]
+            (if (node-down? now then beat-period)
+              (handle-node-down ibis node)))))
+      (catch Exception e (println e)))))
