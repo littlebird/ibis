@@ -12,22 +12,17 @@
   [path]
   (str \/ (string/join "/" path)))
 
-(defn establish-connection
-  [host port]
-  (zookeeper/connect (str host \: port)))
-
 (defn connect
-  [host port]
-  (let [connection (establish-connection host port)]
+  [host-port]
+  (let [connection (zookeeper/connect host-port)]
     {:connection (atom connection)
-     :host host
-     :port port}))
+     :host-port host-port}))
 
 (defn reconnect
-  [{:keys [host port connection]}]
+  [{:keys [host-port connection]}]
   (swap! connection (fn [old]
                       (zookeeper/close old)
-                      (establish-connection host port))))
+                      (zookeeper/connect host-port))))
 
 (defn with-reconnect
   [f zookeeper & args]

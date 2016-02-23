@@ -11,6 +11,8 @@
 (defrecord Ibis
   [stages
    zookeeper-host zookeeper-port kafka-port
+   zookeeper-string
+   kafka-string
    group topic
    store update fetch
    complete
@@ -23,9 +25,11 @@
 
   (start [component]
     (let [ibis-id (java.util.UUID/randomUUID)
-          zookeeper (zoo/connect zookeeper-host zookeeper-port)
-          producer (kafka/make-producer zookeeper-host kafka-port producer-opts)
-          consumer (kafka/make-consumer zookeeper-host zookeeper-port group consumer-opts)
+          zk-string (or zookeeper-string (str zookeeper-host \: zookeeper-port))
+          kafka-string (or kafka-string (str zookeeper-host \: kafka-port))
+          zookeeper (zoo/connect zk-string)
+          producer (kafka/make-producer kafka-string producer-opts)
+          consumer (kafka/make-consumer zk-string group consumer-opts)
           transmit (kafka/make-transmit producer topic encoders)
           receive (kafka/make-receive consumer topic decoders)
           scheduler (tempo/new-scheduler scheduler-threads)
@@ -35,7 +39,9 @@
            component
            :ibis-id ibis-id
            :zookeeper zookeeper
-           :zookeeper-connect (str zookeeper-host \: zookeeper-port)
+           :zookeeper-connect zk-string
+           :zookeeper-string zk-string
+           :kafka-string kafka-string
            :producer producer
            :consumer consumer
            :transmit transmit

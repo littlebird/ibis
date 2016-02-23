@@ -10,20 +10,20 @@
    [ibis.transit :as transit]))
 
 (defn make-producer
-  [zookeeper-host kafka-port opts]
+  [kafka-string opts]
   (producer/producer
    (merge
-    {"bootstrap.servers" (str zookeeper-host \: kafka-port)
+    {"bootstrap.servers" kafka-string
      "max.request.size" "8320000"}
     opts)
    (producer/byte-array-serializer)
    (producer/byte-array-serializer)))
 
 (defn make-consumer
-  [zookeeper-host zookeeper-port group opts]
+  [zookeeper-string group opts]
   (consumer/consumer
    (merge
-    {"zookeeper.connect" (str zookeeper-host \: zookeeper-port)
+    {"zookeeper.connect" zookeeper-string
      "group.id" group
      "fetch.message.max.bytes" "8320000"
      "auto.offset.reset" "largest"

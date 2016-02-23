@@ -20,15 +20,15 @@
   (map vec (paths-from-start course :in)))
 
 (defn submit!
-  [{:keys [store zookeeper zookeeper-host zookeeper-port decoders]} course]
+  [{:keys [store zookeeper zookeeper-string decoders]} course]
   (let [journey-id (java.util.UUID/randomUUID)
         topic (str "ibis-journey-" journey-id)
-        consumer (kafka/make-consumer zookeeper-host zookeeper-port (str journey-id) {})
+        consumer (kafka/make-consumer zookeeper-string (str journey-id) {})
         receive (kafka/make-receive consumer topic decoders)
         journey {:id journey-id :course course :topic topic}]
     (log/info "SUBMIT!" course)
     (zoo/create zookeeper ["ibis" "journeys" journey-id "segments"])
-    (kafka/create-topic (str zookeeper-host \: zookeeper-port) topic 1)
+    (kafka/create-topic zookeeper-string topic 1)
     (store :journey (assoc journey :started (time/now)))
     (assoc journey :consumer consumer :receive receive)))
 
