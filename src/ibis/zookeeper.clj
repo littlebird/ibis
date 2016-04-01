@@ -25,12 +25,19 @@
                       (zookeeper/connect host-port))))
 
 (defn with-reconnect
-  [f zookeeper & args]
-  (try
-    (apply f (cons @(:connection zookeeper) args))
-    (catch Exception e
-      (reconnect zookeeper)
-      (apply f (cons @(:connection zookeeper) args)))))
+  ([f zookeeper & args]
+   (let [result (try
+                  (apply f @(:connection zookeeper) args)
+                  (catch org.apache.zookeeper.KeeperException$SessionExpiredException _
+                    (reconnect zookeeper)
+                    ::retry)
+                  (catch Exception e
+                    (println ::with-reconnect "caught" (type e) (.getMessage e))
+                    (.printStackTrace e)
+                    ::error))]
+     (if (= result ::retry)
+       (recur f zookeeper args)
+       result))))
 
 (defn exists?
   [zookeeper path]
@@ -69,16 +76,23 @@
    :char data/to-char
    :string data/to-string})
 
+(defn convert
+  [which data]
+  (let [convert (get data-map which data/to-long)]
+     (if-let [data (:data data)]
+       (convert data))))
+
+(defn get-raw
+  [zookeeper path]
+  (with-reconnect
+    (fn [connection path]
+      (zookeeper/data connection (pathify path)))
+    zookeeper path))
+
 (defn get-data
   ([zookeeper path] (get-data zookeeper path :long))
   ([zookeeper path convert-key]
-   (let [convert (get data-map convert-key data/to-long)
-         data (with-reconnect
-                (fn [connection path]
-                  (zookeeper/data connection (pathify path)))
-                zookeeper path)]
-     (if-let [data (:data data)]
-       (convert data)))))
+   (convert convert-key (get-raw zookeeper path))))
 
 (defn set-data
   [zookeeper path data]
