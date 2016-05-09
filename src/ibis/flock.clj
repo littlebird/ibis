@@ -69,20 +69,23 @@
                               (dissoc result :ibis))
                             traveled segment-id))
                         (catch Exception e
-                          (let [exception (serialize-exception e)]
-                            (log/error "Exception in stage" stage stage-id)
-                            (log/error (pprint/pprint exception))
-                            (updater :stage {:stage-id stage-id}
-                                     {:failed (time/now)
-                                      :exception exception
-                                      :status "failed"})
-                            (passage
-                              transmit journey stage continuations
-                              {} traveled segment-id))))))
+                          (locking *out*
+                            (let [exception (serialize-exception e)]
+                              (log/error "Exception in stage" stage stage-id)
+                              (log/error (with-out-str (pprint/pprint exception)))
+                              (updater :stage
+                                       {:stage-id stage-id}
+                                       {:failed (time/now)
+                                        :exception exception
+                                        :status "failed"})
+                              (passage
+                                transmit journey stage continuations
+                                {} traveled segment-id)))))))
               (catch Exception e
-                (let [exception (serialize-exception e)]
-                  (log/error "Exception during journey" (:id journey))
-                  (log/error (pprint/pprint exception)))))))
+                (locking *out*
+                  (let [exception (serialize-exception e)]
+                    (log/error "Exception during journey" (:id journey))
+                    (log/error (with-out-str (pprint/pprint exception)))))))))
         (recur (receive))))))
 
 (defn launch-all!
