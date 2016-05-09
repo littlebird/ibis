@@ -32,57 +32,57 @@
       (loop [{:keys [journey stage message traveled segment-id] :as segment} (receive)]
         (when segment
           (let [out-stage? (= stage :out)
-                work (get stages stage)])
-          (try
-            (cond out-stage?
-                  (let [output (kafka/make-transmit producer (:topic journey) encoders)]
-                    (output
-                      {:journey journey
-                       :stage :out
-                       :message message
-                       :traveled (conj traveled stage)
-                       :segment-id segment-id}))
-                  work
-                  (let [stage-id (java.util.UUID/randomUUID)
-                        continuations (get-in journey [:course stage])]
-                    (store
-                      :stage
-                      (assoc segment
-                             :ibis-id ibis-id
-                             :journey-id (:id journey)
-                             :stage stage
-                             :stage-id stage-id
-                             :started (time/now)
-                             :status "running"))
-                    (try
-                      (let [result
-                            (if (= message :land)
-                              :land
-                              (work (assoc message :ibis ibis)))]
-                        (updater :stage {:stage-id stage-id}
-                                 {:completed (time/now)
-                                  :status "complete"})
-                        (passage
-                          transmit journey stage continuations
-                          (if (keyword? result)
-                            result
-                            (dissoc result :ibis))
-                          traveled segment-id))
-                      (catch Exception e
-                        (let [exception (serialize-exception e)]
-                          (log/error "Exception in stage" stage stage-id)
-                          (log/error (pprint/pprint exception))
+                work (get stages stage)]
+            (try
+              (cond out-stage?
+                    (let [output (kafka/make-transmit producer (:topic journey) encoders)]
+                      (output
+                        {:journey journey
+                         :stage :out
+                         :message message
+                         :traveled (conj traveled stage)
+                         :segment-id segment-id}))
+                    work
+                    (let [stage-id (java.util.UUID/randomUUID)
+                          continuations (get-in journey [:course stage])]
+                      (store
+                        :stage
+                        (assoc segment
+                               :ibis-id ibis-id
+                               :journey-id (:id journey)
+                               :stage stage
+                               :stage-id stage-id
+                               :started (time/now)
+                               :status "running"))
+                      (try
+                        (let [result
+                              (if (= message :land)
+                                :land
+                                (work (assoc message :ibis ibis)))]
                           (updater :stage {:stage-id stage-id}
-                                   {:failed (time/now)
-                                    :exception exception
-                                    :status "failed"})
+                                   {:completed (time/now)
+                                    :status "complete"})
                           (passage
                             transmit journey stage continuations
-                            {} traveled segment-id))))))
-            (catch Exception e
-              (let [exception (serialize-exception e)]
-                (log/error "Exception during journey" (:id journey))
-                (log/error (pprint/pprint exception))))))
+                            (if (keyword? result)
+                              result
+                              (dissoc result :ibis))
+                            traveled segment-id))
+                        (catch Exception e
+                          (let [exception (serialize-exception e)]
+                            (log/error "Exception in stage" stage stage-id)
+                            (log/error (pprint/pprint exception))
+                            (updater :stage {:stage-id stage-id}
+                                     {:failed (time/now)
+                                      :exception exception
+                                      :status "failed"})
+                            (passage
+                              transmit journey stage continuations
+                              {} traveled segment-id))))))
+              (catch Exception e
+                (let [exception (serialize-exception e)]
+                  (log/error "Exception during journey" (:id journey))
+                  (log/error (pprint/pprint exception)))))))
         (recur (receive))))))
 
 (defn launch-all!
