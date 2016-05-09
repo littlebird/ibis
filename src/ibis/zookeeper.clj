@@ -121,3 +121,29 @@
     :NodeChildrenChanged nil
     :NodeDataChanged nil
     nil))
+
+(defn compare+set
+  ([zookeeper path nxt]
+   (compare+set zookeeper path nxt (get-raw zookeeper path)))
+  ([zookeeper path nxt prev]
+    (with-reconnect
+      (fn [connection]
+        (zookeeper/compare-and-set-data
+          connection
+          (pathify path)
+          (:data prev)
+          (data/to-bytes nxt)))
+      zookeeper)))
+
+(defn atomically
+  ([zookeeper path f convert-key]
+   (atomically zookeeper path f convert-key 100))
+  ([zookeeper path f convert-key retries]
+   (when (pos? retries)
+     (let [state (get-raw zookeeper path)
+           data (convert convert-key state)
+           new-data (f data)
+           success (compare+set zookeeper path new-data state)]
+       (if success
+         success
+         (recur zookeeper path f convert-key (dec retries)))))))
