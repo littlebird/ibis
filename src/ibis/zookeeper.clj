@@ -60,14 +60,12 @@
 (defn create
   ([zookeeper path] (create zookeeper path {:persistent? true}))
   ([zookeeper path {:keys [persistent?]}]
-   (doseq [span (range 1 (inc (count path)))]
-     (let [subpath (take span path)]
-       (if-let [info (exists? zookeeper subpath)]
-         info
-         (zookeeper/create
-          @(:connection zookeeper)
-          (pathify subpath)
-          :persistent? persistent?))))))
+   (doseq [subpath (rest (reductions conj [] path))]
+     (when-not (exists? zookeeper subpath)
+       (zookeeper/create
+         @(:connection zookeeper)
+         (pathify subpath)
+         :persistent? persistent?)))))
 
 (def data-map
   {:int data/to-int
