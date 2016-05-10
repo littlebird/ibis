@@ -7,21 +7,6 @@
    [ibis.zookeeper :as zk]
    [ibis.kafka :as kafka]))
 
-(def flock-population-path
-  [:ibis :flock :population])
-
-(defn increase-flock
-  [zookeeper]
-  (zk/atomically zookeeper flock-population-path (fnil inc 0) :long))
-
-(defn decrease-flock
-  [zookeeper]
-  (zk/atomically zookeeper flock-population-path dec :long))
-
-(defn flock-headcount
-  [zookeeper]
-  (zk/get-data zookeeper flock-population-path :long))
-
 (defn serialize-exception
   [exception]
   {:class (str (class exception))
@@ -34,6 +19,41 @@
     (log/error (apply print-str message)
                \newline
                (with-out-str (pprint/pprint error)))))
+
+(def ibis-population-path
+  ["ibis" "flock" "population"])
+
+(defonce ibis-count (atom 0))
+
+(defn update-population
+  [zookeeper id]
+  (try
+    (zk/set-data zookeeper (conj ibis-population-path id) @ibis-count)
+    (catch Exception e
+      (except (assoc (serialize-exception e) :population @ibis-count) ::update-population))))
+
+(defn increase-flock
+  [zookeeper id]
+  (swap! ibis-count inc)
+  (update-population zookeeper id))
+
+(defn decrease-flock
+  [zookeeper id]
+  (swap! ibis-count dec)
+  (update-population zookeeper id))
+
+(defn flock-headcount
+  [zookeeper]
+  (let [children (zk/children zookeeper ibis-population-path)]
+    (if (sequential? children)
+      (apply +
+             (for [child children]
+               (zk/with-reconnect
+                 (fn [connection]
+                   (or (zk/get-data zookeeper (conj ibis-population-path child) :long)
+                       0))
+                 zookeeper)))
+      0)))
 
 (defn passage
   [transmit journey stage continuations result traveled segment-id]
@@ -120,8 +140,10 @@
     update-fn :update
     :as ibis}]
   (let [flock-id (java.util.UUID/randomUUID)
+        flock-path (conj ibis-population-path flock-id)
         context (assoc ibis :update-fn update-fn :flock-id flock-id)]
-    (zk/create zookeeper flock-population-path)
+    (zk/create zookeeper ibis-population-path)
+    (zk/create zookeeper flock-path {:persistent? false})
     (log/trace "IBIS flock thread" flock-id "launched")
     (pool/future
       pool
@@ -129,7 +151,7 @@
               :as segment}
              (receive)]
         (when segment
-          (increase-flock zookeeper)
+          (increase-flock zookeeper flock-id)
           (try
             (if (= stage :out)
               (wrap-up-stage segment context)
@@ -138,7 +160,7 @@
             (catch Exception e
               (let [exception (serialize-exception e)]
                 (except exception "Exception during journey" (:id journey))))
-            (finally (decrease-flock zookeeper))))
+            (finally (decrease-flock zookeeper flock-id))))
         (recur (receive))))))
 
 (defn launch-all!
