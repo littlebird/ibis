@@ -7,6 +7,7 @@
    [ibis.zookeeper :as zk]
    [ibis.kafka :as kafka]))
 
+;;; logging
 (defn serialize-exception
   [exception]
   {:class (str (class exception))
@@ -20,27 +21,28 @@
                \newline
                (with-out-str (pprint/pprint error)))))
 
+;;; flock segment counts
 (def ibis-population-path
   ["ibis" "flock" "population"])
 
 (defonce ibis-count (atom 0))
 
 (defn update-population
-  [zookeeper id]
+  [zookeeper flock-id]
   (try
-    (zk/set-data zookeeper (conj ibis-population-path id) @ibis-count)
+    (zk/set-data zookeeper (conj ibis-population-path flock-id) @ibis-count)
     (catch Exception e
       (except (assoc (serialize-exception e) :population @ibis-count) ::update-population))))
 
 (defn increase-flock
-  [zookeeper id]
+  [zookeeper flock-id]
   (swap! ibis-count inc)
-  (update-population zookeeper id))
+  (update-population zookeeper flock-id))
 
 (defn decrease-flock
-  [zookeeper id]
+  [zookeeper flock-id]
   (swap! ibis-count dec)
-  (update-population zookeeper id))
+  (update-population zookeeper flock-id))
 
 (defn flock-headcount
   [zookeeper]
@@ -55,6 +57,13 @@
                  zookeeper)))
       0)))
 
+(defn start-counted-flock
+  [zookeeper flock-id]
+    (zk/create zookeeper ibis-population-path)
+    (zk/create zookeeper (conj ibis-population-path flock-id)
+               {:persistent? false}))
+
+;;; stage-running
 (defn passage
   [transmit journey stage continuations result traveled segment-id]
   (doseq [continuation continuations]
@@ -71,12 +80,11 @@
    {:keys [encoders producer]
     :as ibis}]
   (let [output (kafka/make-transmit producer (:topic journey) encoders)]
-    (output
-      {:journey journey
-       :stage :out
-       :message message
-       :traveled (conj traveled :out)
-       :segment-id segment-id})))
+    (output {:journey journey
+             :stage :out
+             :message message
+             :traveled (conj traveled :out)
+             :segment-id segment-id})))
 
 (defn fail-stage
   [e
@@ -136,14 +144,12 @@
                     ibis)))))
 
 (defn launch!
-  [{:keys [ibis-id transmit receive stages store producer encoders pool zookeeper]
+  [{:keys [receive stages pool zookeeper]
     update-fn :update
     :as ibis}]
   (let [flock-id (java.util.UUID/randomUUID)
-        flock-path (conj ibis-population-path flock-id)
         context (assoc ibis :update-fn update-fn :flock-id flock-id)]
-    (zk/create zookeeper ibis-population-path)
-    (zk/create zookeeper flock-path {:persistent? false})
+    (start-counted-flock zookeeper flock-id)
     (log/trace "IBIS flock thread" flock-id "launched")
     (pool/future
       pool

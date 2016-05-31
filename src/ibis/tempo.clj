@@ -54,6 +54,7 @@
      #(.cancel task true))))
 
 (defn uniquely!
+  ;; this is racey, can be fixed with compare+set
   [{:keys [zookeeper]} path f]
   (when-not (zoo/exists? zookeeper path)
     (zoo/create zookeeper path {:persistent? false})
