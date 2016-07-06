@@ -109,6 +109,6 @@
 
 (defn start-ibis
   [config]
-  (stop)
+  (send ibis stop)
   (send ibis (constantly (start config)))
   (await ibis))

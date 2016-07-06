@@ -31,6 +31,9 @@
                   (catch org.apache.zookeeper.KeeperException$SessionExpiredException _
                     (reconnect zookeeper)
                     ::retry)
+                  (catch org.apache.zookeeper.KeeperException$ConnectionLossException _
+                    (reconnect zookeeper)
+                    ::retry)
                   (catch Exception e
                     (println ::with-reconnect "caught" (type e) (.getMessage e))
                     (.printStackTrace e)
@@ -76,9 +79,9 @@
 
 (defn convert
   [which data]
-  (let [convert (get data-map which data/to-long)]
+  (let [converter (get data-map which data/to-long)]
      (if-let [data (:data data)]
-       (convert data))))
+       (converter data))))
 
 (defn get-raw
   [zookeeper path]
