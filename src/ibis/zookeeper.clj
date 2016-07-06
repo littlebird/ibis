@@ -32,7 +32,9 @@
                     (reconnect zookeeper)
                     ::retry)
                   (catch org.apache.zookeeper.KeeperException$ConnectionLossException _
-                    (reconnect zookeeper)
+                    (locking with-reconnect
+                      (Thread/sleep 200)
+                      (reconnect zookeeper))
                     ::retry)
                   (catch Exception e
                     (println ::with-reconnect "caught" (type e) (.getMessage e))
