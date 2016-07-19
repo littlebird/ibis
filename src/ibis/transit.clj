@@ -27,9 +27,11 @@
 (defn kafka-serialize
   [segment encoders]
   (let [baos (ByteArrayOutputStream. 512)
-        writer (transit/writer baos :json (update default-encoders :handlers merge encoders))
-        _ (transit/write writer segment)]
-    (.toByteArray baos)))
+        writer (transit/writer baos :json (update default-encoders :handlers merge encoders))]
+    (try (transit/write writer segment)
+         (.toByteArray baos)
+         (catch Exception e
+           (throw (ex-info (.getMessage e) {:segment segment}))))))
 
 (defn kafka-deserialize
   [bytes decoders]
