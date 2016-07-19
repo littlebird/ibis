@@ -1,7 +1,7 @@
 (ns ibis.transit
   (:require
    [cognitect.transit :as transit]
-   [timbre.log :as timbre]
+   [taoensso.timbre :as timbre]
    [clj-time.coerce :as coerce])
   (:import
    (java.io ByteArrayInputStream ByteArrayOutputStream)))
