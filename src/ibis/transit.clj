@@ -1,6 +1,7 @@
 (ns ibis.transit
   (:require
    [cognitect.transit :as transit]
+   [timbre.log :as timbre]
    [clj-time.coerce :as coerce])
   (:import
    (java.io ByteArrayInputStream ByteArrayOutputStream)))
@@ -31,6 +32,7 @@
     (try (transit/write writer segment)
          (.toByteArray baos)
          (catch Exception e
+           (timbre/error "error encoding" (pr-str segment))
            (throw (ex-info (.getMessage e) {:segment segment}))))))
 
 (defn kafka-deserialize
