@@ -1,8 +1,8 @@
 (ns ibis.zookeeper
-  (:require
-   [clojure.string :as string]
-   [zookeeper :as zookeeper]
-   [zookeeper.data :as data]))
+  (:require [clojure.string :as string]
+            [zookeeper :as zookeeper]
+            [zookeeper.data :as data])
+  (:import (java.util.concurrent.locks ReentrantLock)))
 
 (defn epoch
   []
@@ -18,11 +18,17 @@
     {:connection (atom connection)
      :host-port host-port}))
 
+(def reconnect-lock
+  (ReentrantLock.))
+
 (defn reconnect
   [{:keys [host-port connection]}]
-  (swap! connection (fn [old]
-                      (zookeeper/close old)
-                      (zookeeper/connect host-port))))
+  (when (.tryLock reconnect-lock)
+    (try
+      (swap! connection (fn [old]
+                          (zookeeper/close old)
+                          (zookeeper/connect host-port)))
+      (finally (.unlock reconnect-lock)))))
 
 (defn with-reconnect
   ([f zookeeper & args]
@@ -32,9 +38,8 @@
                     (reconnect zookeeper)
                     ::retry)
                   (catch org.apache.zookeeper.KeeperException$ConnectionLossException _
-                    (locking with-reconnect
-                      (Thread/sleep 200)
-                      (reconnect zookeeper))
+                    (Thread/sleep 200)
+                    (reconnect zookeeper)
                     ::retry)
                   (catch Exception e
                     (println ::with-reconnect "caught" (type e) (.getMessage e))
