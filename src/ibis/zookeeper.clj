@@ -2,7 +2,9 @@
   (:require [clojure.string :as string]
             [zookeeper :as zookeeper]
             [zookeeper.data :as data])
-  (:import (java.util.concurrent.locks ReentrantLock)))
+  (:import (java.util.concurrent.locks ReentrantLock)
+           (org.apache.zookeeper KeeperException$SessionExpiredException
+                                 KeeperException$ConnectionLossException)))
 
 (defn epoch
   []
@@ -34,10 +36,10 @@
   ([f zookeeper & args]
    (let [result (try
                   (apply f @(:connection zookeeper) args)
-                  (catch org.apache.zookeeper.KeeperException$SessionExpiredException _
+                  (catch KeeperException$SessionExpiredException _
                     (reconnect zookeeper)
                     ::retry)
-                  (catch org.apache.zookeeper.KeeperException$ConnectionLossException _
+                  (catch KeeperException$ConnectionLossException _
                     (Thread/sleep 200)
                     (reconnect zookeeper)
                     ::retry)

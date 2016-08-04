@@ -43,6 +43,26 @@
           encoded (producer/record topic baos)]
       (producer/send producer encoded))))
 
+(def receivers (atom []))
+
+(def receiver
+  [consumer topic ready receive stream it]
+  (swap! receivers conj
+         {:started (java.util.Date.)
+          :topic topic
+          :consumer consumer
+          :ready ready
+          :receive receive
+          :stream stream
+          :it it})
+  (fn ibis-receive
+    ([]
+     (try
+      (>/>!! ready :ready)
+      (>/<!! receive)
+      (catch Exception e
+        (log/error "Exception in receive!" e))))))
+
 (defn make-receive
   [consumer topic decoders]
   (let [ready (>/chan 1000)
@@ -59,13 +79,7 @@
           (catch Exception e
             (log/error "Exception during receive loop!" e)))
         (recur (.message (.next it)))))
-    (fn ibis-receive
-      []
-      (try
-        (>/>!! ready :ready)
-        (>/<!! receive)
-        (catch Exception e
-          (log/error "Exception in receive!" e))))))
+    (receiver ready receive stream it)))
 
 (defn create-topic
   [zookeeper topic partitions]
