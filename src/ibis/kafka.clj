@@ -45,7 +45,7 @@
 
 (def receivers (atom []))
 
-(def receiver
+(defn receiver
   [consumer topic ready receive stream it]
   (swap! receivers conj
          {:started (java.util.Date.)
@@ -54,32 +54,41 @@
           :ready ready
           :receive receive
           :stream stream
-          :it it})
+          :get-it #(do it)})
   (fn ibis-receive
     ([]
-     (try
       (>/>!! ready :ready)
-      (>/<!! receive)
-      (catch Exception e
-        (log/error "Exception in receive!" e))))))
+      (if-let [result (>/<!! receive)]
+        result
+        (log/error "Exception in receive for topic " topic
+                   (pr-str (Exception. "Closed Channel")))))))
 
 (defn make-receive
   [consumer topic decoders]
-  (let [ready (>/chan 1000)
-        receive (>/chan 1000)
+  (let [ready (>/chan)
+        receive (>/chan)
         stream (consumer/create-message-stream consumer topic)
-        it (.iterator stream)]
-    (>/go
-      (>/<! ready)
-      (loop [message (.message (.next it))]
-        (try
-          (let [payload (transit/kafka-deserialize message decoders)]
-            (>/>! receive payload)
-            (>/<! ready))
-          (catch Exception e
-            (log/error "Exception during receive loop!" e)))
-        (recur (.message (.next it)))))
-    (receiver ready receive stream it)))
+        it (.iterator stream)
+        clean-up (delay
+                  (>/close! ready)
+                  (>/close! receive)
+                  (swap! receivers
+                         (partial filterv #(not= (:stream %) stream))))]
+    (>/go-loop
+     []
+     (let [request (>/<! ready)]
+       (if-not (= request :ready)
+         (force clean-up)
+         (do (try (let [message (.message (.next it))
+                        payload (transit/kafka-deserialize message decoders)]
+                    (>/>! receive payload))
+                  (catch Exception e
+                    (log/error "Exception during receive loop!" e)
+                    (>/>! receive {:error "receive loop failure"
+                                   :topic topic})
+                    (force clean-up)))
+             (recur)))))
+    (receiver consumer topic ready receive stream it)))
 
 (defn create-topic
   [zookeeper topic partitions]
