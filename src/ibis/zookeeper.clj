@@ -23,6 +23,9 @@
 (def reconnect-lock
   (ReentrantLock.))
 
+(defonce reconnect-hooks
+  (atom {}))
+
 (defn reconnect
   [{:keys [host-port connection]}]
   (when (.tryLock reconnect-lock)
@@ -30,23 +33,24 @@
       (swap! connection (fn [old]
                           (zookeeper/close old)
                           (zookeeper/connect host-port)))
+      (doseq [[k hook] @reconnect-hooks]
+        (try (hook)
+             (catch Exception e
+               (println ::reconnect
+                        "BAD HOOK" k \newline
+                        (pr-str e)))))
       (finally (.unlock reconnect-lock)))))
+
+
 
 (defn with-reconnect
   ([f zookeeper & args]
    (let [result (try
                   (apply f @(:connection zookeeper) args)
                   (catch KeeperException$SessionExpiredException _
+                    (println ::with-reconnect "renegotiating expired session")
                     (reconnect zookeeper)
-                    ::retry)
-                  (catch KeeperException$ConnectionLossException _
-                    (Thread/sleep 200)
-                    (reconnect zookeeper)
-                    ::retry)
-                  (catch Exception e
-                    (println ::with-reconnect "caught" (type e) (.getMessage e))
-                    (.printStackTrace e)
-                    ::error))]
+                    ::retry))]
      (if (= result ::retry)
        (recur f zookeeper args)
        result))))
