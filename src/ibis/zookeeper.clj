@@ -41,19 +41,23 @@
                         (pr-str e)))))
       (finally (.unlock reconnect-lock)))))
 
-
-
-(defn with-reconnect
+(defn handle-reconnect
   ([f zookeeper & args]
    (let [result (try
                   (apply f @(:connection zookeeper) args)
                   (catch KeeperException$SessionExpiredException _
-                    (println ::with-reconnect "renegotiating expired session")
+                    (println ::handle-reconnect "renegotiating expired session")
                     (reconnect zookeeper)
                     ::retry))]
      (if (= result ::retry)
        (recur f zookeeper args)
        result))))
+
+(defn with-reconnect
+  [f zookeeper & args]
+  (try (apply handle-reconnect f zookeeper args)
+       (catch Exception e
+         (println ::with-reconnect "Error in zookeeper call." (pr-str e)))))
 
 (defn exists?
   [zookeeper path]
