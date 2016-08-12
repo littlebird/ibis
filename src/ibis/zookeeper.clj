@@ -93,8 +93,8 @@
 (defn convert
   [which data]
   (let [converter (get data-map which data/to-long)]
-     (if-let [data (:data data)]
-       (converter data))))
+    (if-let [data (:data data)]
+      (converter data))))
 
 (defn get-raw
   [zookeeper path]
@@ -140,14 +140,14 @@
   ([zookeeper path nxt]
    (compare+set zookeeper path nxt (get-raw zookeeper path)))
   ([zookeeper path nxt prev]
-    (with-reconnect
-      (fn [connection]
-        (zookeeper/compare-and-set-data
-          connection
-          (pathify path)
-          (:data prev)
-          (data/to-bytes nxt)))
-      zookeeper)))
+   (with-reconnect
+     (fn [connection]
+       (zookeeper/compare-and-set-data
+        connection
+        (pathify path)
+        (:data prev)
+        (data/to-bytes nxt)))
+     zookeeper)))
 
 (defn atomically
   ([zookeeper path f convert-key]

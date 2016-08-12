@@ -9,17 +9,17 @@
    [ibis.heartbeat :as heartbeat]))
 
 (defrecord Ibis
-  [stages
-   zookeeper-host zookeeper-port kafka-port
-   zookeeper-string
-   kafka-string
-   group topic
-   store update fetch
-   complete
-   encoders decoders
-   producer-opts consumer-opts
-   flock-threads scheduler-threads
-   beat-period]
+           [stages
+            zookeeper-host zookeeper-port kafka-port
+            zookeeper-string
+            kafka-string
+            group topic
+            store update fetch
+            complete
+            encoders decoders
+            producer-opts consumer-opts
+            flock-threads scheduler-threads
+            beat-period]
 
   component/Lifecycle
 
@@ -34,7 +34,7 @@
           receive (kafka/make-receive consumer topic decoders)
           scheduler (tempo/new-scheduler scheduler-threads)
           pool (pool/threadpool flock-threads)
-          ibis 
+          ibis
           (assoc
            component
            :ibis-id ibis-id

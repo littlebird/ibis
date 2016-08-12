@@ -59,9 +59,9 @@
 
 (defn start-counted-flock
   [zookeeper flock-id]
-    (zk/create zookeeper ibis-population-path)
-    (zk/create zookeeper (conj ibis-population-path flock-id)
-               {:persistent? false}))
+  (zk/create zookeeper ibis-population-path)
+  (zk/create zookeeper (conj ibis-population-path flock-id)
+             {:persistent? false}))
 
 ;;; stage-running
 (defn passage
@@ -95,13 +95,13 @@
   (let [exception (serialize-exception e)]
     (except exception "Exception in stage" stage stage-id)
     (update-fn
-      :stage {:stage-id stage-id}
-      {:failed (time/now)
-       :exception exception
-       :status "failed"})
+     :stage {:stage-id stage-id}
+     {:failed (time/now)
+      :exception exception
+      :status "failed"})
     (passage
-      transmit journey stage continuations
-      {} traveled segment-id)))
+     transmit journey stage continuations
+     {} traveled segment-id)))
 
 (defn run-stage
   [{:keys [message stage traveled journey segment-id]
@@ -112,30 +112,30 @@
   (let [stage-id (java.util.UUID/randomUUID)
         continuations (get-in journey [:course stage])]
     (store
-      :stage
-      (merge
-        segment
-        {:ibis-id ibis-id
-         :journey-id (:id journey)
-         :stage stage
-         :stage-id stage-id
-         :started (time/now)
-         :status "running"}))
+     :stage
+     (merge
+      segment
+      {:ibis-id ibis-id
+       :journey-id (:id journey)
+       :stage stage
+       :stage-id stage-id
+       :started (time/now)
+       :status "running"}))
     (try
       (let [result
             (if (= message :land)
               :land
               (work (assoc message :ibis ibis)))]
         (update-fn
-          :stage {:stage-id stage-id}
-          {:completed (time/now)
-           :status "complete"})
+         :stage {:stage-id stage-id}
+         {:completed (time/now)
+          :status "complete"})
         (passage
-          transmit journey stage continuations
-          (if (keyword? result)
-            result
-            (dissoc result :ibis))
-          traveled segment-id))
+         transmit journey stage continuations
+         (if (keyword? result)
+           result
+           (dissoc result :ibis))
+         traveled segment-id))
       (catch Exception e
         (fail-stage e
                     (assoc segment
