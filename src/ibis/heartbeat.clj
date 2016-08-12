@@ -56,7 +56,10 @@
             nodes (zoo/children zookeeper node-path)]
         (doseq [node nodes]
           (let [node-info (zoo/exists? zookeeper (conj node-path node))
-                then (:mtime node-info)]
-            (if (node-down? now then beat-period)
+                then (when node-info
+                       (:mtime node-info))]
+            (if (and then
+                     (node-down? now then beat-period))
               (handle-node-down ibis node)))))
-      (catch Exception e (println e)))))
+      (catch Exception e
+        (println ::beat "\n" e)))))
