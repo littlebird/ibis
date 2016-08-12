@@ -3,7 +3,7 @@
   :url "http://github.com/littlebird/ibis"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.7.0"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.371"]
                  [com.cognitect/transit-clj "0.8.275"]
                  [com.stuartsierra/component "0.3.1"]
