@@ -41,23 +41,41 @@
                         (pr-str e)))))
       (finally (.unlock reconnect-lock)))))
 
+(def errors (atom []))
+
 (defn handle-reconnect
-  ([f zookeeper & args]
+  ([f failure zookeeper & args]
    (let [result (try
                   (apply f @(:connection zookeeper) args)
                   (catch KeeperException$SessionExpiredException _
                     (println ::handle-reconnect "renegotiating expired session")
                     (reconnect zookeeper)
-                    ::retry))]
+                    ::retry)
+                  (catch KeeperException$ConnectionLossException e
+                    (println ::handle-reconnect "lost connection at"
+                             (.getMessage e))
+                    ::retry)
+                  (catch Exception e
+                    (swap! errors conj e)
+                    (failure e)))]
      (if (= result ::retry)
-       (recur f zookeeper args)
+       (do (Thread/sleep 200)
+           (recur f failure zookeeper args))
        result))))
+
+(def handled-errors (atom []))
 
 (defn with-reconnect
   [f zookeeper & args]
-  (try (apply handle-reconnect f zookeeper args)
-       (catch Exception e
-         (println ::with-reconnect "Error in zookeeper call." (pr-str e)))))
+  (try (apply handle-reconnect
+              f
+              (fn [error]
+                (swap! handled-errors conj error)
+                (println ::with-reconnect
+                         "Error in zookeeper call."
+                         (pr-str error)))
+              zookeeper
+              args)))
 
 (defn exists?
   [zookeeper path]
