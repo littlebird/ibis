@@ -46,7 +46,7 @@
 (def receivers (atom []))
 
 (defn receiver
-  [consumer topic ready receive stream it]
+  [consumer topic ready receive stream it cleanup]
   (swap! receivers conj
          {:started (java.util.Date.)
           :topic topic
@@ -54,14 +54,16 @@
           :ready ready
           :receive receive
           :stream stream
-          :get-it #(do it)})
+          :get-it #(do it)
+          :cleanup cleanup})
   (fn ibis-receive
     ([]
      (>/>!! ready :ready)
      (if-let [result (>/<!! receive)]
        result
-       (log/error "Exception in receive for topic " topic
-                  (pr-str (Exception. "Closed Channel")))))))
+       (do (log/warn "leaving receive on call" topic)
+           (force cleanup)
+           nil)))))
 
 (defn make-receive
   [consumer topic decoders]
@@ -73,22 +75,25 @@
                   (>/close! ready)
                   (>/close! receive)
                   (swap! receivers
-                         (partial filterv #(not= (:stream %) stream))))]
-    (>/go-loop
-     []
-      (let [request (>/<! ready)]
-        (if-not (= request :ready)
-          (force clean-up)
-          (do (try (let [message (.message (.next it))
-                         payload (transit/kafka-deserialize message decoders)]
-                     (>/>! receive payload))
-                   (catch Exception e
-                     (log/error "Exception during receive loop!" e)
-                     (>/>! receive {:error "receive loop failure"
-                                    :topic topic})
-                     (force clean-up)))
-              (recur)))))
-    (receiver consumer topic ready receive stream it)))
+                         (partial filterv #(not= ((juxt :topic :consumer) %)
+                                                 [topic consumer]))))]
+    (future
+      (loop []
+        (let [request (>/<!! ready)]
+          (if-not (= request :ready)
+            (do (log/warn "leaving receive loop for" topic)
+                (force clean-up))
+            (do (try (let [message (.message (.next it))
+                           payload (transit/kafka-deserialize message decoders)]
+                       (>/>!! receive payload))
+                     (catch Exception e
+                       (log/error "Exception during receive loop!" e)
+                       (>/>!! receive {:error "receive loop failure"
+                                       :topic topic})
+                       (force clean-up)))
+                (do (log/warn "continuing receive loop for" topic)
+                    (recur)))))))
+    (receiver consumer topic ready receive stream it clean-up)))
 
 (defn create-topic
   [zookeeper topic partitions]
