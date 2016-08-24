@@ -28,39 +28,52 @@
 
 (deftest ibis-one-journey
   (testing "Ibis full circle"
-    (let [ibis (ibis/start {:stages stages})]
-      (flock/launch-all! ibis 3)
-      (let [journey (journey/submit! ibis course)]
-        (doseq [x (range 15)]
-          (journey/push! ibis journey {:x x}))
-        (journey/finish! ibis journey)
-        (let [results (journey/pull! ibis journey conj [])]
-          (println results)
-          (is (= (count results) 75))))
-      (ibis/stop ibis))))
+    (let [cleanup (promise)
+          ibis (ibis/start {:stages stages})]
+      (try
+        (flock/launch-all! ibis 3)
+        (let [journey (journey/submit! ibis course cleanup)]
+          (doseq [x (range 15)]
+            (journey/push! ibis journey {:x x}))
+          (journey/finish! ibis journey)
+          (let [results (journey/pull! ibis journey conj [])]
+            (println results)
+            (is (= (count results) 75))))
+        (finally
+          (when (realized? cleanup)
+            (@cleanup))
+          (ibis/stop ibis))))))
 
 (deftest ibis-multiple-journeys
   (testing "Ibis full circle"
-    (let [ibis (ibis/start {:stages stages})]
-      (flock/launch-all! ibis 3)
-      (let [journey-a (journey/submit! ibis course)]
-        (doseq [x (range 5)]
-          (journey/push! ibis journey-a {:x x}))
-        (let [journey-b (journey/submit! ibis course)]
-          (doseq [x (range 5 15)]
-            (journey/push! ibis journey-a {:x x})
-            (journey/push! ibis journey-b {:x x}))
-          (journey/finish! ibis journey-a)
-          (doseq [x (range 15 20)]
-            (journey/push! ibis journey-b {:x x}))
-          (let [results-a (journey/pull! ibis journey-a conj [])]
-            (println results-a)
-            (is (= (count results-a) 75)))
-          (journey/finish! ibis journey-b)
-          (let [results-b (journey/pull! ibis journey-b conj [])]
-            (println results-b)
-            (is (= (count results-b) 75)))))
-      (ibis/stop ibis))))
+    (let [cleanup-a (promise)
+          cleanup-b (promise)
+          ibis (ibis/start {:stages stages})]
+      (try
+        (flock/launch-all! ibis 3)
+        (let [journey-a (journey/submit! ibis course cleanup-a)]
+          (doseq [x (range 5)]
+            (journey/push! ibis journey-a {:x x}))
+          (let [journey-b (journey/submit! ibis course cleanup-b)]
+            (doseq [x (range 5 15)]
+              (journey/push! ibis journey-a {:x x})
+              (journey/push! ibis journey-b {:x x}))
+            (journey/finish! ibis journey-a)
+            (doseq [x (range 15 20)]
+              (journey/push! ibis journey-b {:x x}))
+            (let [results-a (journey/pull! ibis journey-a conj [])]
+              (println results-a)
+              (is (= (count results-a) 75)))
+            (journey/finish! ibis journey-b)
+            (let [results-b (journey/pull! ibis journey-b conj [])]
+              (println results-b)
+              (is (= (count results-b) 75)))))
+        (finally
+          (when (realized? cleanup-a)
+            (@cleanup-a))
+          (when (realized? cleanup-b)
+            (@cleanup-b))
+          (ibis/stop ibis))))))
 
 (def branching-course
   {:in [:inc :add-five]
@@ -70,13 +83,18 @@
 
 (deftest ibis-readme-journey
   (testing "Example from README"
-    (let [ibis (ibis/start {:stages stages})]
-      (flock/launch-all! ibis 3)
-      (let [journey (journey/submit! ibis branching-course)]
-        (doseq [part [{:n 1} {:n 5} {:n 88}]]
-          (journey/push! ibis journey part))
-        (journey/finish! ibis journey)
-        (let [results (journey/pull! ibis journey conj [])]
-          (println results)
-          (is (= (count results) 6))))
-      (ibis/stop ibis))))
+    (let [cleanup (promise)
+          ibis (ibis/start {:stages stages})]
+      (try
+        (flock/launch-all! ibis 3)
+        (let [journey (journey/submit! ibis branching-course cleanup)]
+          (doseq [part [{:n 1} {:n 5} {:n 88}]]
+            (journey/push! ibis journey part))
+          (journey/finish! ibis journey)
+          (let [results (journey/pull! ibis journey conj [])]
+            (println results)
+            (is (= (count results) 6))))
+        (finally
+          (when (realized? cleanup)
+            (@cleanup))
+          (ibis/stop ibis))))))

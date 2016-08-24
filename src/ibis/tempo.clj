@@ -32,11 +32,14 @@
 (defn periodic-submit
   ([ibis course f] (periodic-submit ibis course f nil))
   ([ibis course f chan]
-   (log/info "JOURNEY TRIGGERED" course)
-   (let [journey (journey/submit! ibis course)]
+   (log/info ::periodic-submit "JOURNEY TRIGGERED" course)
+   (let [cleanup (promise)
+         journey (journey/submit! ibis course cleanup)]
      (f (partial journey/push! ibis journey))
      (journey/finish! ibis journey)
-     (future (journey/pull! ibis journey conj [] chan)))))
+     (future (journey/pull! ibis journey conj [] chan)
+             (when (realized? cleanup)
+               (@cleanup))))))
 
 (defn schedule
   ([scheduler f period] (schedule scheduler f period 0))

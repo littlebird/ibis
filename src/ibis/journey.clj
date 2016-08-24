@@ -3,6 +3,8 @@
    [clojure.core.async :as >]
    [clj-time.core :as time]
    [taoensso.timbre :as log]
+   [clj-kafka.consumer.zk :as kafka.consumer]
+   [clj-kafka.admin :as kafka.admin]
    [ibis.zookeeper :as zoo]
    [ibis.kafka :as kafka]))
 
@@ -20,17 +22,34 @@
   (map vec (paths-from-start course :in)))
 
 (defn submit!
-  [{:keys [store zookeeper zookeeper-string decoders]} course]
+  [{:keys [store zookeeper zookeeper-string decoders]} course janitor]
+  {:pre [(not (realized? janitor))]
+   :post [(realized? janitor)]}
   (let [journey-id (java.util.UUID/randomUUID)
         topic (str "ibis-journey-" journey-id)
         consumer (kafka/make-consumer zookeeper-string (str journey-id) {})
         receive (kafka/make-receive consumer topic decoders)
-        journey {:id journey-id :course course :topic topic}]
+        journey {:id journey-id :course course :topic topic}
+        tracking-path ["ibis" "journeys" journey-id "segments"]
+        thunk (delay
+               (let [client (kafka.admin/zk-client zookeeper-string)]
+                 (try
+                   (receive :close)
+                   (kafka.consumer/shutdown consumer)
+                   (zoo/delete zookeeper tracking-path)
+                   (kafka.admin/delete-topic client topic)
+                   (finally (.close client)))))
+        cleanup (fn []
+                  (force thunk)
+                  nil)]
+    (deliver janitor cleanup)
     (log/info "SUBMIT!" course)
-    (zoo/create zookeeper ["ibis" "journeys" journey-id "segments"])
+    (zoo/create zookeeper tracking-path)
     (kafka/create-topic zookeeper-string topic 1)
     (store :journey (assoc journey :started (time/now)))
-    (assoc journey :consumer consumer :receive receive)))
+    (assoc journey
+           :consumer consumer
+           :receive receive)))
 
 (defn push!
   [{:keys [transmit zookeeper]} journey segment]

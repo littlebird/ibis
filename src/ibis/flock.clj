@@ -27,12 +27,20 @@
 
 (defonce ibis-count (atom 0))
 
+(defn start-counted-flock
+  [zookeeper flock-id]
+  (zk/create zookeeper ibis-population-path)
+  (zk/create zookeeper (conj ibis-population-path flock-id)
+             {:persistent? false}))
+
 (defn update-population
   [zookeeper flock-id]
   (try
+    (start-counted-flock zookeeper flock-id)
     (zk/set-data zookeeper (conj ibis-population-path flock-id) @ibis-count)
     (catch Exception e
-      (except (assoc (serialize-exception e) :population @ibis-count) ::update-population))))
+      (except (assoc (serialize-exception e) :population @ibis-count)
+              ::update-population))))
 
 (defn increase-flock
   [zookeeper flock-id]
@@ -49,19 +57,14 @@
   (let [children (zk/children zookeeper ibis-population-path)]
     (if (sequential? children)
       (apply +
-             (for [child children]
+             (for [child children
+                   :let [path (conj ibis-population-path child)]]
                (zk/with-reconnect
                  (fn [connection]
-                   (or (zk/get-data zookeeper (conj ibis-population-path child) :long)
+                   (or (zk/get-data zookeeper path :long)
                        0))
                  zookeeper)))
       0)))
-
-(defn start-counted-flock
-  [zookeeper flock-id]
-  (zk/create zookeeper ibis-population-path)
-  (zk/create zookeeper (conj ibis-population-path flock-id)
-             {:persistent? false}))
 
 ;;; stage-running
 (defn passage
@@ -149,25 +152,27 @@
     :as ibis}]
   (let [flock-id (java.util.UUID/randomUUID)
         context (assoc ibis :update-fn update-fn :flock-id flock-id)]
-    (start-counted-flock zookeeper flock-id)
     (log/trace "IBIS flock thread" flock-id "launched")
     (pool/future
       pool
-      (loop [{:keys [journey stage message traveled segment-id]
-              :as segment}
-             (receive)]
-        (when segment
-          (increase-flock zookeeper flock-id)
-          (try
-            (if (= stage :out)
-              (wrap-up-stage segment context)
-              (when-let [work (get stages stage)]
-                (run-stage segment work context)))
-            (catch Exception e
-              (let [exception (serialize-exception e)]
-                (except exception "Exception during journey" (:id journey))))
-            (finally (decrease-flock zookeeper flock-id))))
-        (recur (receive))))))
+      (try
+        (loop []
+          (let [{:keys [journey stage message traveled segment-id]
+                 :as segment} (receive)]
+            (when-not (contains? #{nil :exit} segment)
+              (try
+                (increase-flock zookeeper flock-id)
+                (if (= stage :out)
+                ;; TODO - how to clean up in this case?
+                  (wrap-up-stage segment context)
+                  (when-let [work (get stages stage)]
+                    (run-stage segment work context)))
+                (catch Exception e
+                  (let [exception (serialize-exception e)]
+                    (except exception "Exception during journey" (:id journey))))
+                (finally (decrease-flock zookeeper flock-id)))
+              (recur))))
+        (finally (receive :close))))))
 
 (defn launch-all!
   [ibis n]
