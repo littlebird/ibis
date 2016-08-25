@@ -65,8 +65,8 @@
 
 (defn make-receive
   [consumer topic decoders]
-  (let [ready (>/chan)
-        receive (>/chan)
+  (let [ready (>/chan 1000)
+        receive (>/chan 1000)
         stream (consumer/create-message-stream consumer topic)
         it (.iterator stream)
         clean-up (delay
