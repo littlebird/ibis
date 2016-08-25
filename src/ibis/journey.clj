@@ -72,19 +72,16 @@
    {:keys [id] :as journey}
    paths segments landed
    {:keys [segment-id] :as segment}]
-  (log/debug
-   "LANDED" id
-   "segment" segment-id
-   "- paths:segments:landed"
-   (str (count paths) ":" (count (get segments segment-id)) ":" (count landed)))
   (if (= (count paths) (count (get segments segment-id)))
-    (do
-      (zoo/delete zookeeper ["ibis" "journeys" id "segments" segment-id])
-      (let [children (zoo/count-children zookeeper ["ibis" "journeys" id "segments"])]
-        (and
-         (zero? children)
-         (= (count paths)
-            (count landed)))))
+    (let [_ (zoo/delete zookeeper ["ibis" "journeys" id "segments" segment-id])
+          children (zoo/count-children zookeeper ["ibis" "journeys" id "segments"])
+          done? (and
+                 (zero? children)
+                 (= (count paths)
+                    (count landed)))]
+     (when done?
+       (log/debug (:course journey) "LANDED" id "segment" segment-id)
+       true))
     false))
 
 (defn clean-up!
