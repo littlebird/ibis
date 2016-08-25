@@ -43,8 +43,13 @@
 
 (defn read-topic
   [dump]
+  ;; TODO - slurp followed by ByteArrayInputStream is silly
   (let [bytes (slurp dump)
-        reader (transit/reader (java.io.ByteArrayInputStream. (.getBytes bytes)) :json {})
-        segments (take-while identity (map (fn [x] (try (transit/read reader) (catch Exception e nil))) (range)))
+        reader (transit/reader (ByteArrayInputStream. (.getBytes bytes)) :json {})
+        segments (take-while
+                  identity
+                  (repeatedly #(try (transit/read reader)
+                                    (catch Exception e
+                                      (timbre/error ::read-topic (pr-str e))))))
         groups (group-by (comp str :segment-id) segments)]
     groups))

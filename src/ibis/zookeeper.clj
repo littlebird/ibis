@@ -67,15 +67,15 @@
 
 (defn with-reconnect
   [f zookeeper & args]
-  (try (apply handle-reconnect
-              f
-              (fn [error]
-                (swap! handled-errors conj error)
-                (println ::with-reconnect
-                         "Error in zookeeper call."
-                         (pr-str error)))
-              zookeeper
-              args)))
+  (apply handle-reconnect
+         f
+         (fn [error]
+           (swap! handled-errors conj error)
+           (println ::with-reconnect
+                    "Error in zookeeper call."
+                    (pr-str error)))
+         zookeeper
+         args))
 
 (defn exists?
   [zookeeper path]

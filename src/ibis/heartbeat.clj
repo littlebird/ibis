@@ -62,4 +62,4 @@
                      (node-down? now then beat-period))
               (handle-node-down ibis node)))))
       (catch Exception e
-        (println ::beat "\n" e)))))
+        (println ::beat "\n" (pr-str e))))))
