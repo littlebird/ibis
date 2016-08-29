@@ -29,7 +29,6 @@
 
 (defn start-counted-flock
   [zookeeper flock-id]
-  (zk/create zookeeper ibis-population-path)
   (zk/create zookeeper (conj ibis-population-path flock-id)
              {:persistent? false}))
 
@@ -38,6 +37,10 @@
   (try
     (start-counted-flock zookeeper flock-id)
     (zk/set-data zookeeper (conj ibis-population-path flock-id) @ibis-count)
+    (catch KeeperException$ConnectionLossException _
+      (log/error ::update-population "Zookeeper connection loss"))
+    (catch KeeperException$SessionExpiredException _
+      (log/error ::update-population "Zookeeper session expired"))
     (catch Exception e
       (except (assoc (serialize-exception e) :population @ibis-count)
               ::update-population))))
