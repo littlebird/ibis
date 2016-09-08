@@ -5,7 +5,9 @@
    [clj-time.core :as time]
    [com.climate.claypoole :as pool]
    [ibis.zookeeper :as zk]
-   [ibis.kafka :as kafka]))
+   [ibis.kafka :as kafka])
+  (:import (org.apache.zookeeper KeeperException$SessionExpiredException
+                                 KeeperException$ConnectionLossException)))
 
 ;;; logging
 (defn serialize-exception

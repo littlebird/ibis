@@ -79,9 +79,9 @@
                  (zero? children)
                  (= (count paths)
                     (count landed)))]
-     (when done?
-       (log/debug (:course journey) "LANDED" id "segment" segment-id)
-       true))
+      (when done?
+        (log/debug (:course journey) "LANDED" id "segment" segment-id)
+        true))
     false))
 
 (defn clean-up!
