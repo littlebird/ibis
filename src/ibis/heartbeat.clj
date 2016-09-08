@@ -58,8 +58,9 @@
           (let [node-info (zoo/exists? zookeeper (conj node-path node))
                 then (when node-info
                        (:mtime node-info))]
-            (if (and then
-                     (node-down? now then beat-period))
+            (when (or (not then)
+                      (not now)
+                      (node-down? now then beat-period))
               (handle-node-down ibis node)))))
       (catch Exception e
         (println ::beat "\n" (pr-str e))))))
