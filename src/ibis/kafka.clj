@@ -98,10 +98,10 @@
                          payload (transit/kafka-deserialize message decoders)]
                      (>/>!! receive payload))
                    (catch Throwable e
-                     (log/error "Throw during receive loop!" e)
+                     (log/error ::make-receive "Throw during receive loop!" e)
                      (throw e))
                    (catch Exception e
-                     (log/error "Exception during receive loop!" e)
+                     (log/error ::make-receive "Exception during receive loop!" e)
                      (>/>!! receive {:error "receive loop failure"
                                      :topic topic})
                      (force clean-up))))
