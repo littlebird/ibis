@@ -75,13 +75,16 @@
         receive (>/chan 1000)
         stream (consumer/create-message-stream consumer topic)
         it (.iterator stream)
-        clean-up (delay
-                  (>/close! ready)
-                  (>/close! receive)
-                  (swap! receivers
-                         (partial filterv #(not= ((juxt :topic :consumer) %)
-                                                 [topic consumer])))
-                  :exit)
+        clean-up #_(delay
+                    (>/close! ready)
+                    (>/close! receive)
+                    (swap! receivers
+                           (partial filterv #(not= ((juxt :topic :consumer) %)
+                                                   [topic consumer])))
+                    :exit)
+        (delay (log/debug ::make-receive
+                          "would close consumer for"
+                          topic))
         continue? (fn []
                     (not (realized? clean-up)))]
     (future
