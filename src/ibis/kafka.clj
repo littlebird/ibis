@@ -7,7 +7,8 @@
    [clj-kafka.new.producer :as producer]
    [clj-kafka.consumer.zk :as consumer]
    [clj-kafka.admin :as admin]
-   [ibis.transit :as transit]))
+   [ibis.transit :as transit])
+  (:import (java.util Date)))
 
 (defn make-producer
   [kafka-string opts]
@@ -48,7 +49,7 @@
 (defn receiver
   [consumer topic ready receive stream it cleanup]
   (swap! receivers conj
-         {:started (java.util.Date.)
+         {:started (Date.)
           :topic topic
           :consumer consumer
           :ready ready
@@ -59,7 +60,7 @@
   (fn ibis-receive
     ([action]
      (cond (= action :close)
-           (force cleanup)
+           (cleanup)
            :else
            (log/error ::ibis-receive "unknown action" action)))
     ([]
@@ -67,7 +68,9 @@
      (if-let [result (>/<!! receive)]
        result
        (do (log/info ::ibis-receive "exiting" topic "as requested")
-           (force cleanup))))))
+           (cleanup))))))
+
+(def releases (atom []))
 
 (defn make-receive
   [consumer topic decoders]
@@ -75,18 +78,19 @@
         receive (>/chan 1000)
         stream (consumer/create-message-stream consumer topic)
         it (.iterator stream)
-        clean-up #_(delay
-                    (>/close! ready)
-                    (>/close! receive)
-                    (swap! receivers
-                           (partial filterv #(not= ((juxt :topic :consumer) %)
-                                                   [topic consumer])))
-                    :exit)
-        (delay (log/debug ::make-receive
-                          "would close consumer for"
-                          topic))
+        done? (delay true)
+        clean-up (fn []
+                   (force done?)
+                   #_(>/close! ready)
+                   #_(>/close! receive)
+                   #_(swap! receivers
+                            (partial filterv #(not= ((juxt :topic :consumer) %)
+                                                    [topic consumer])))
+                   (swap! releases conj {:when (Date.) :topic topic})
+                   (log/debug ::make-receive "would close consumer for" topic)
+                   :exit)
         continue? (fn []
-                    (not (realized? clean-up)))]
+                    (not (realized? done?)))]
     (future
       (try
         (loop []
@@ -104,10 +108,10 @@
                      (log/error ::make-receive "Exception during receive loop!" e)
                      (>/>!! receive {:error "receive loop failure"
                                      :topic topic})
-                     (force clean-up))))
+                     (clean-up))))
             (when (continue?)
               (recur))))
-        (finally (force clean-up))))
+        (finally (clean-up))))
     (receiver consumer topic ready receive stream it clean-up)))
 
 (defn create-topic
